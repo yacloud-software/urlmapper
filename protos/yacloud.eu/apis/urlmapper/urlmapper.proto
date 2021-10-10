@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package urlmapper;
+option java_package = "eu.yacloud.apis.urlmapper";
+import "golang.conradwood.net/apis/common/common.proto";
+
+message JsonMapping {
+  uint64 ID=1; // id of this mapping
+  string Domain=2; // the domain to which this applies
+  string Path=3; // the path under which can be found
+  string ServiceID=4; // the serviceid in protorenderer to which refers
+  string GroupID=5; // the groupid this entry requires the user to be in (to match)
+}
+message GetJsonMappingRequest {
+  string Domain=1; // the domain to which this applies
+  string Path=2; // the path under which can be found
+}
+message JsonMappingResponse {
+  JsonMapping Mapping=1;
+  string GRPCService=2; // name of grpc service
+}
+message JsonMappingResponseList {
+  repeated JsonMappingResponse Responses=1;
+}
+message DomainList {
+  repeated string Domains=1;
+}
+message ServiceID {
+  string ID=1;
+}
+
+/*
+This service maps urls to backends and gRPC servers to json urls
+ */
+service URLMapper {
+  // get json mapping for URL and user
+  rpc GetJsonMappingWithUser(GetJsonMappingRequest) returns (JsonMappingResponse);
+  // get json mapping for URL
+  rpc GetJsonMapping(GetJsonMappingRequest) returns (JsonMappingResponse);
+  // get all json mappings
+  rpc GetJsonMappings(common.Void) returns (JsonMappingResponseList);
+  // add a json mapping
+  rpc AddJsonMapping(JsonMapping) returns (common.Void);
+  // get all domains "mapped" to jsonmultiplexer
+  rpc GetJsonDomains(common.Void) returns (DomainList);
+  // get mappings for a service
+  rpc GetServiceMappings(ServiceID) returns (JsonMappingResponseList);
+}
+
+
