@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"os"
 	"strings"
-	pb "yacloud.eu/apis/urlmapper"
+	pb "golang.yacloud.eu/apis/urlmapper"
 )
 
 var (

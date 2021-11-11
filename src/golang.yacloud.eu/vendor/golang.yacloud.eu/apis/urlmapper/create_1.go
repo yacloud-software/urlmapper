@@ -1,7 +1,7 @@
 // client create: URLMapperClient
 /* geninfo:
-   filename  : protos/yacloud.eu/apis/urlmapper/urlmapper.proto
-   gopackage : yacloud.eu/apis/urlmapper
+   filename  : protos/golang.yacloud.eu/apis/urlmapper/urlmapper.proto
+   gopackage : golang.yacloud.eu/apis/urlmapper
    importname: ai_0
    varname   : client_URLMapperClient_0
    clientname: URLMapperClient

@@ -9,7 +9,7 @@ import (
 	"golang.conradwood.net/go-easyops/utils"
 	"net/url"
 	"os"
-	pb "yacloud.eu/apis/urlmapper"
+	pb "golang.yacloud.eu/apis/urlmapper"
 )
 
 var (

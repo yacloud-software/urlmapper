@@ -35,7 +35,7 @@ import (
 	gosql "database/sql"
 	"fmt"
 	"golang.conradwood.net/go-easyops/sql"
-	savepb "yacloud.eu/apis/urlmapper"
+	savepb "golang.yacloud.eu/apis/urlmapper"
 )
 
 type DBJsonMapping struct {
