@@ -7,9 +7,9 @@ import (
 	pr "golang.conradwood.net/apis/protorenderer"
 	"golang.conradwood.net/go-easyops/authremote"
 	"golang.conradwood.net/go-easyops/utils"
+	pb "golang.yacloud.eu/apis/urlmapper"
 	"net/url"
 	"os"
-	pb "golang.yacloud.eu/apis/urlmapper"
 )
 
 var (
@@ -65,7 +65,11 @@ func getJsonMap() *pb.JsonMapping {
 	}
 	u, err := url.Parse(*mapurl)
 	utils.Bail("not a valid url", err)
-
+	fmt.Printf("Scheme: \"%s\"\n", u.Scheme)
+	if u.Scheme == "" {
+		fmt.Printf("Please specify protocol (http/https)\n")
+		os.Exit(10)
+	}
 	fsr := &pr.FindServiceByNameRequest{Name: *grpcservice}
 	ctx := authremote.Context()
 	sv, err := pr.GetProtoRendererClient().FindServiceByName(ctx, fsr)
