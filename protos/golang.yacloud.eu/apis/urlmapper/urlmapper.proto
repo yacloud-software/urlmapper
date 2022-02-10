@@ -28,6 +28,16 @@ message DomainList {
 message ServiceID {
   string ID=1;
 }
+// via _api this can get mapped in
+message AnyHostMapping {
+  uint64 ID=1;
+  string Path=2 [(common.sql_unique)="true"];
+  string ServiceID=3; // the serviceid in protorenderer to which refers
+}
+message AnyMappingRequest {
+  string Path=1 ;
+  string ServiceName=2;
+}
 
 /*
 This service maps urls to backends and gRPC servers to json urls
@@ -45,6 +55,8 @@ service URLMapper {
   rpc GetJsonDomains(common.Void) returns (DomainList);
   // get mappings for a service
   rpc GetServiceMappings(ServiceID) returns (JsonMappingResponseList);
+  // add any host mapping
+  rpc AddAnyHostMapping(AnyMappingRequest) returns (common.Void);
 }
 
 
