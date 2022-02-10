@@ -36,6 +36,11 @@ import (
 	"fmt"
 	"golang.conradwood.net/go-easyops/sql"
 	savepb "golang.yacloud.eu/apis/urlmapper"
+	"os"
+)
+
+var (
+	default_def_DBJsonMapping *DBJsonMapping
 )
 
 type DBJsonMapping struct {
@@ -44,6 +49,25 @@ type DBJsonMapping struct {
 	SQLArchivetablename string
 }
 
+func DefaultDBJsonMapping() *DBJsonMapping {
+	if default_def_DBJsonMapping != nil {
+		return default_def_DBJsonMapping
+	}
+	psql, err := sql.Open()
+	if err != nil {
+		fmt.Printf("Failed to open database: %s\n", err)
+		os.Exit(10)
+	}
+	res := NewDBJsonMapping(psql)
+	ctx := context.Background()
+	err = res.CreateTable(ctx)
+	if err != nil {
+		fmt.Printf("Failed to create table: %s\n", err)
+		os.Exit(10)
+	}
+	default_def_DBJsonMapping = res
+	return res
+}
 func NewDBJsonMapping(db *sql.DB) *DBJsonMapping {
 	foo := DBJsonMapping{DB: db}
 	foo.SQLTablename = "jsonmapping"
@@ -125,10 +149,10 @@ func (a *DBJsonMapping) ByID(ctx context.Context, p uint64) (*savepb.JsonMapping
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByID: error scanning (%s)", e))
 	}
 	if len(l) == 0 {
-		return nil, a.Error(ctx, qn, fmt.Errorf("No JsonMapping with id %d", p))
+		return nil, a.Error(ctx, qn, fmt.Errorf("No JsonMapping with id %v", p))
 	}
 	if len(l) != 1 {
-		return nil, a.Error(ctx, qn, fmt.Errorf("Multiple (%d) JsonMapping with id %d", len(l), p))
+		return nil, a.Error(ctx, qn, fmt.Errorf("Multiple (%d) JsonMapping with id %v", len(l), p))
 	}
 	return l[0], nil
 }

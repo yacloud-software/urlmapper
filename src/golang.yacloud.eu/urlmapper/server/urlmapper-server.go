@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"golang.conradwood.net/apis/common"
 	ipm "golang.conradwood.net/apis/ipmanager"
+	pr "golang.conradwood.net/apis/protorenderer"
 	"golang.conradwood.net/go-easyops/auth"
 	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/server"
 	"golang.conradwood.net/go-easyops/sql"
 	"golang.conradwood.net/go-easyops/utils"
+	pb "golang.yacloud.eu/apis/urlmapper"
 	"golang.yacloud.eu/urlmapper/db"
 	"google.golang.org/grpc"
 	"os"
 	"strings"
-	pb "golang.yacloud.eu/apis/urlmapper"
 )
 
 var (
@@ -110,12 +111,12 @@ func (e *echoServer) GetJsonMappingWithUser(ctx context.Context, req *pb.GetJson
 
 }
 func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingRequest) (*pb.JsonMappingResponse, error) {
-	req.Path = strings.Trim(req.Path, "/")
-	req.Path = strings.ToLower(req.Path)
+	path := strings.Trim(req.Path, "/")
+	path = strings.ToLower(path)
 	req.Domain = strings.ToLower(req.Domain)
-	jms, err := jsonMapStore.ByPath(ctx, req.Path)
+	jms, err := jsonMapStore.ByPath(ctx, path)
 	if *debug {
-		fmt.Printf("GetJsonMapping - path=\"%s\", domain=\"%s\"\n", req.Path, req.Domain)
+		fmt.Printf("GetJsonMapping - path=\"%s\", domain=\"%s\"\n", path, req.Domain)
 	}
 	if err != nil {
 		return nil, err
@@ -128,23 +129,43 @@ func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingR
 			break
 		}
 	}
-	if jm == nil {
-		if *debug {
-			fmt.Printf("Found no service for \"domain=%s, path=%s\"\n", req.Domain, req.Path)
+	if jm != nil {
+		sname, err := getServiceName(ctx, jm.ServiceID)
+		if err != nil {
+			fmt.Printf("Service with ID \"%s\" not found: %s\n", jm.ServiceID, utils.ErrorString(err))
+			return nil, err
 		}
-		return nil, errors.NotFound(ctx, "not found (%s/%s)", req.Domain, req.Path)
-	}
-	sname, err := getServiceName(ctx, jm.ServiceID)
-	if err != nil {
-		fmt.Printf("Service with ID \"%s\" not found: %s\n", jm.ServiceID, utils.ErrorString(err))
-		return nil, err
-	}
-	res := &pb.JsonMappingResponse{
-		Mapping:     jm,
-		GRPCService: sname,
+		res := &pb.JsonMappingResponse{
+			Mapping:     jm,
+			GRPCService: sname,
+		}
+		return res, nil
 	}
 
-	return res, nil
+	if strings.HasPrefix(path, "_api/") {
+		p := strings.TrimPrefix(path, "_api/")
+		ahms, err := db.DefaultDBAnyHostMapping().ByPath(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		if len(ahms) > 0 {
+			ah := ahms[0]
+			sname, err := getServiceName(ctx, ah.ServiceID)
+			if err != nil {
+				fmt.Printf("Service with ID \"%s\" not found: %s\n", ah.ServiceID, utils.ErrorString(err))
+				return nil, err
+			}
+			res := &pb.JsonMappingResponse{
+				GRPCService: sname,
+			}
+			return res, nil
+		}
+	}
+
+	if *debug {
+		fmt.Printf("Found no service for \"domain=%s, path=%s\"\n", req.Domain, path)
+	}
+	return nil, errors.NotFound(ctx, "not found (%s/%s)", req.Domain, path)
 
 }
 func (e *echoServer) GetJsonDomains(ctx context.Context, req *common.Void) (*pb.DomainList, error) {
@@ -191,4 +212,33 @@ func (e *echoServer) GetServiceMappings(ctx context.Context, req *pb.ServiceID) 
 	}
 	return res, nil
 
+}
+func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRequest) (*common.Void, error) {
+	if req.Path == "" {
+		return nil, errors.InvalidArgs(ctx, "missing path", "missing path")
+	}
+	if req.ServiceName == "" {
+		return nil, errors.InvalidArgs(ctx, "missing service name", "missing service name")
+	}
+	fsr := &pr.FindServiceByNameRequest{Name: req.ServiceName}
+	sv, err := pr.GetProtoRendererClient().FindServiceByName(ctx, fsr)
+	if err != nil {
+		return nil, err
+	}
+	if len(sv.Services) == 0 {
+		fmt.Printf("No such service: \"%s\"\n", fsr.Name)
+		return nil, errors.NotFound(ctx, "no such service (%s)", fsr.Name)
+	}
+	if len(sv.Services) > 1 {
+		return nil, errors.InvalidArgs(ctx, "no such service", "no such service (%s)", fsr.Name)
+	}
+	ahm := &pb.AnyHostMapping{
+		Path:      req.Path,
+		ServiceID: sv.Services[0].Service.ID,
+	}
+	_, err = db.DefaultDBAnyHostMapping().Save(ctx, ahm)
+	if err != nil {
+		return nil, err
+	}
+	return &common.Void{}, nil
 }

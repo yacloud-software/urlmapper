@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	addflag     = flag.Bool("add", false, "add a mapping")
-	findflag    = flag.Bool("find", false, "find a mapping")
-	mapurl      = flag.String("url", "", "url to serve a mapping on")
-	grpcservice = flag.String("service", "", "`grpc service` name, e.g. \"urlmapper.URLMapper\"")
-	echoClient  pb.URLMapperClient
+	addflag           = flag.Bool("add", false, "add a mapping for [anyhost]/_api/[domain]/[path]")
+	add_specific_flag = flag.Bool("add_specific", false, "add a specific mapping (with host)")
+	findflag          = flag.Bool("find", false, "find a mapping")
+	mapurl            = flag.String("url", "", "url to serve a mapping on")
+	grpcservice       = flag.String("service", "", "`grpc service` name, e.g. \"urlmapper.URLMapper\"")
+	echoClient        pb.URLMapperClient
 )
 
 func main() {
@@ -26,6 +27,10 @@ func main() {
 	echoClient = pb.GetURLMapperClient()
 	if *addflag {
 		Add()
+		os.Exit(0)
+	}
+	if *add_specific_flag {
+		AddSpecific()
 		os.Exit(0)
 	}
 	// a context with authentication
@@ -43,8 +48,24 @@ func main() {
 	fmt.Printf("Done.\n")
 	os.Exit(0)
 }
-
 func Add() {
+	if len(flag.Args()) == 0 {
+		fmt.Printf("Missing path\n")
+		os.Exit(10)
+	}
+	path := flag.Args()[0]
+	if *grpcservice == "" {
+		fmt.Printf("Missing servicename\n")
+		os.Exit(10)
+	}
+	req := &pb.AnyMappingRequest{Path: path, ServiceName: *grpcservice}
+	ctx := authremote.Context()
+	_, err := echoClient.AddAnyHostMapping(ctx, req)
+	utils.Bail("failed to add", err)
+	fmt.Printf("Done\n")
+	return
+}
+func AddSpecific() {
 	req := getJsonMap()
 	fmt.Printf("Adding %v\n", req)
 	ctx := authremote.Context()
