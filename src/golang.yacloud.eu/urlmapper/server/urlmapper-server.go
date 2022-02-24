@@ -155,7 +155,9 @@ func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingR
 				fmt.Printf("Service with ID \"%s\" not found: %s\n", ah.ServiceID, utils.ErrorString(err))
 				return nil, err
 			}
+			jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + ah.Path, ServiceID: ah.ServiceID, GroupID: ""}
 			res := &pb.JsonMappingResponse{
+				Mapping:     jm,
 				GRPCService: sname,
 			}
 			return res, nil
@@ -196,6 +198,9 @@ func (e *echoServer) GetJsonDomains(ctx context.Context, req *common.Void) (*pb.
 }
 
 func (e *echoServer) GetServiceMappings(ctx context.Context, req *pb.ServiceID) (*pb.JsonMappingResponseList, error) {
+	if *debug {
+		fmt.Printf("Getting jsonmapping for service #%s\n", req.ID)
+	}
 	jms, err := jsonMapStore.ByServiceID(ctx, req.ID)
 	if err != nil {
 		return nil, err
@@ -207,6 +212,22 @@ func (e *echoServer) GetServiceMappings(ctx context.Context, req *pb.ServiceID) 
 			fmt.Printf("Service with ID \"%s\" not found: %s\n", jm.ServiceID, utils.ErrorString(err))
 			return nil, err
 		}
+		r := &pb.JsonMappingResponse{Mapping: jm, GRPCService: sname}
+		res.Responses = append(res.Responses, r)
+	}
+
+	// add the "any" host mappings
+	anys, err := db.DefaultDBAnyHostMapping().ByServiceID(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	sname, err := getServiceName(ctx, req.ID)
+	if err != nil {
+		fmt.Printf("Service with ID \"%s\" not found: %s\n", req.ID, utils.ErrorString(err))
+		return nil, err
+	}
+	for _, a := range anys {
+		jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + a.Path, ServiceID: req.ID, GroupID: ""}
 		r := &pb.JsonMappingResponse{Mapping: jm, GRPCService: sname}
 		res.Responses = append(res.Responses, r)
 	}

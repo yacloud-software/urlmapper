@@ -50,7 +50,7 @@ func main() {
 }
 func Add() {
 	if len(flag.Args()) == 0 {
-		fmt.Printf("Missing path\n")
+		fmt.Printf("Missing path (as command line argument, following options)\n")
 		os.Exit(10)
 	}
 	path := flag.Args()[0]
