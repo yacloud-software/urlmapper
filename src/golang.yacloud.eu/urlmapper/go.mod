@@ -3,12 +3,12 @@ module golang.yacloud.eu/urlmapper
 go 1.17
 
 require (
-	golang.conradwood.net/apis/common v1.1.1717
+	golang.conradwood.net/apis/common v1.1.1746
 	golang.conradwood.net/apis/ipmanager v1.1.1717
 	golang.conradwood.net/apis/protorenderer v1.1.1717
-	golang.conradwood.net/go-easyops v0.1.12540
+	golang.conradwood.net/go-easyops v0.1.12738
 	golang.yacloud.eu/apis/urlmapper v1.1.1577
-	google.golang.org/grpc v1.46.2
+	google.golang.org/grpc v1.47.0
 )
 
 require (
@@ -22,19 +22,19 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.34.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	golang.conradwood.net/apis/auth v1.1.1717 // indirect
-	golang.conradwood.net/apis/autodeployer v1.1.1717 // indirect
-	golang.conradwood.net/apis/deploymonkey v1.1.1717 // indirect
-	golang.conradwood.net/apis/echoservice v1.1.1717 // indirect
-	golang.conradwood.net/apis/errorlogger v1.1.1717 // indirect
-	golang.conradwood.net/apis/framework v1.1.1717 // indirect
+	golang.conradwood.net/apis/auth v1.1.1728 // indirect
+	golang.conradwood.net/apis/autodeployer v1.1.1728 // indirect
+	golang.conradwood.net/apis/deploymonkey v1.1.1728 // indirect
+	golang.conradwood.net/apis/echoservice v1.1.1728 // indirect
+	golang.conradwood.net/apis/errorlogger v1.1.1728 // indirect
+	golang.conradwood.net/apis/framework v1.1.1728 // indirect
 	golang.conradwood.net/apis/h2gproxy v1.1.1717 // indirect
 	golang.conradwood.net/apis/objectauth v1.1.1717 // indirect
-	golang.conradwood.net/apis/objectstore v1.1.1717 // indirect
-	golang.conradwood.net/apis/registry v1.1.1717 // indirect
-	golang.conradwood.net/apis/rpcinterceptor v1.1.1717 // indirect
-	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
-	golang.org/x/sys v0.0.0-20220519141025-dcacdad47464 // indirect
+	golang.conradwood.net/apis/objectstore v1.1.1728 // indirect
+	golang.conradwood.net/apis/registry v1.1.1728 // indirect
+	golang.conradwood.net/apis/rpcinterceptor v1.1.1728 // indirect
+	golang.org/x/net v0.0.0-20220615171555-694bf12d69de // indirect
+	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
