@@ -251,7 +251,7 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 		return nil, errors.InvalidArgs(ctx, "no such service", "no such service (%s)", fsr.Name)
 	}
 	srv := sv.Services[0]
-	path := srv.PackageFQDN
+	path := srv.PackageFQDN + "/" + srv.Service.Name
 	fmt.Printf("Adding Service: %#v -> path=%s\n", srv, path)
 	fmt.Printf("ProtoRenderService: %#v -> path=%s\n", srv.Service, path)
 	fmt.Printf("ProtoRenderPackage: %#v -> path=%s\n", srv.Package, path)
