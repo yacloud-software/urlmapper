@@ -234,10 +234,7 @@ func (e *echoServer) GetServiceMappings(ctx context.Context, req *pb.ServiceID) 
 	return res, nil
 
 }
-func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRequest) (*common.Void, error) {
-	if req.Path == "" {
-		return nil, errors.InvalidArgs(ctx, "missing path", "missing path")
-	}
+func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRequest) (*pb.AnyMappingResponse, error) {
 	if req.ServiceName == "" {
 		return nil, errors.InvalidArgs(ctx, "missing service name", "missing service name")
 	}
@@ -253,13 +250,19 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	if len(sv.Services) > 1 {
 		return nil, errors.InvalidArgs(ctx, "no such service", "no such service (%s)", fsr.Name)
 	}
+	srv := sv.Services[0]
+	path := "/_api/" + srv.PackageFQDN
+	fmt.Printf("Adding Service: %#v -> path=%s\n", srv, path)
+	fmt.Printf("ProtoRenderService: %#v -> path=%s\n", srv.Service, path)
+	fmt.Printf("ProtoRenderPackage: %#v -> path=%s\n", srv.Package, path)
 	ahm := &pb.AnyHostMapping{
-		Path:      req.Path,
+		Path:      path,
 		ServiceID: sv.Services[0].Service.ID,
 	}
 	_, err = db.DefaultDBAnyHostMapping().Save(ctx, ahm)
 	if err != nil {
 		return nil, err
 	}
-	return &common.Void{}, nil
+	res := &pb.AnyMappingResponse{Path: path}
+	return res, nil
 }

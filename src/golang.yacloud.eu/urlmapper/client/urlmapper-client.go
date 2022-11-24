@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	addflag           = flag.Bool("add", false, "add a mapping for [anyhost]/_api/[domain]/[path]")
+	addflag           = flag.String("add", "", "`servicename` - add this service as [anyhost]/_api/[domain]/[path]")
 	add_specific_flag = flag.Bool("add_specific", false, "add a specific mapping (with host)")
 	findflag          = flag.Bool("find", false, "find a mapping")
 	mapurl            = flag.String("url", "", "url to serve a mapping on")
@@ -25,7 +25,7 @@ func main() {
 	flag.Parse()
 
 	echoClient = pb.GetURLMapperClient()
-	if *addflag {
+	if *addflag != "" {
 		Add()
 		os.Exit(0)
 	}
@@ -49,19 +49,11 @@ func main() {
 	os.Exit(0)
 }
 func Add() {
-	if len(flag.Args()) == 0 {
-		fmt.Printf("Missing path (as command line argument, following options)\n")
-		os.Exit(10)
-	}
-	path := flag.Args()[0]
-	if *grpcservice == "" {
-		fmt.Printf("Missing servicename\n")
-		os.Exit(10)
-	}
-	req := &pb.AnyMappingRequest{Path: path, ServiceName: *grpcservice}
+	req := &pb.AnyMappingRequest{Path: "", ServiceName: *addflag}
 	ctx := authremote.Context()
-	_, err := echoClient.AddAnyHostMapping(ctx, req)
+	r, err := echoClient.AddAnyHostMapping(ctx, req)
 	utils.Bail("failed to add", err)
+	fmt.Printf("Added - serving on [anyhost]/%s\n", r.Path)
 	fmt.Printf("Done\n")
 	return
 }
