@@ -111,7 +111,31 @@ func (e *echoServer) GetJsonMappingWithUser(ctx context.Context, req *pb.GetJson
 
 }
 func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingRequest) (*pb.JsonMappingResponse, error) {
+
 	path := strings.Trim(req.Path, "/")
+
+	if strings.HasPrefix(path, "_api/") {
+		p := strings.TrimPrefix(path, "_api/")
+		ahms, err := db.DefaultDBAnyHostMapping().ByPath(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		if len(ahms) > 0 {
+			ah := ahms[0]
+			sname, err := getServiceName(ctx, ah.ServiceID)
+			if err != nil {
+				fmt.Printf("Service with ID \"%s\" not found: %s\n", ah.ServiceID, utils.ErrorString(err))
+				return nil, err
+			}
+			jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + ah.Path, ServiceID: ah.ServiceID, GroupID: ""}
+			res := &pb.JsonMappingResponse{
+				Mapping:     jm,
+				GRPCService: sname,
+			}
+			return res, nil
+		}
+	}
+
 	path = strings.ToLower(path)
 	req.Domain = strings.ToLower(req.Domain)
 	jms, err := jsonMapStore.ByPath(ctx, path)
@@ -140,28 +164,6 @@ func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingR
 			GRPCService: sname,
 		}
 		return res, nil
-	}
-
-	if strings.HasPrefix(path, "_api/") {
-		p := strings.TrimPrefix(path, "_api/")
-		ahms, err := db.DefaultDBAnyHostMapping().ByPath(ctx, p)
-		if err != nil {
-			return nil, err
-		}
-		if len(ahms) > 0 {
-			ah := ahms[0]
-			sname, err := getServiceName(ctx, ah.ServiceID)
-			if err != nil {
-				fmt.Printf("Service with ID \"%s\" not found: %s\n", ah.ServiceID, utils.ErrorString(err))
-				return nil, err
-			}
-			jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + ah.Path, ServiceID: ah.ServiceID, GroupID: ""}
-			res := &pb.JsonMappingResponse{
-				Mapping:     jm,
-				GRPCService: sname,
-			}
-			return res, nil
-		}
 	}
 
 	if *debug {
@@ -252,6 +254,7 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	}
 	srv := sv.Services[0]
 	path := srv.PackageFQDN + "/" + srv.Service.Name
+	//	path = strings.ToLower(path)
 	fmt.Printf("Adding Service: %#v -> path=%s\n", srv, path)
 	fmt.Printf("ProtoRenderService: %#v -> path=%s\n", srv.Service, path)
 	fmt.Printf("ProtoRenderPackage: %#v -> path=%s\n", srv.Package, path)
