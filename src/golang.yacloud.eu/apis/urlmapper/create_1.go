@@ -1,8 +1,15 @@
 // client create: URLMapperClient
+/*
+  Created by /home/cnw/devel/go/go-tools/src/golang.conradwood.net/gotools/protoc-gen-cnw/protoc-gen-cnw.go
+*/
+
 /* geninfo:
    filename  : protos/golang.yacloud.eu/apis/urlmapper/urlmapper.proto
    gopackage : golang.yacloud.eu/apis/urlmapper
    importname: ai_0
+   clientfunc: GetURLMapper
+   serverfunc: NewURLMapper
+   lookupfunc: URLMapperLookupID
    varname   : client_URLMapperClient_0
    clientname: URLMapperClient
    servername: URLMapperServer
@@ -33,8 +40,9 @@ func GetURLMapperClient() URLMapperClient {
        return client_URLMapperClient_0
     }
 
-    client_URLMapperClient_0 = NewURLMapperClient(client.Connect("urlmapper.URLMapper"))
+    client_URLMapperClient_0 = NewURLMapperClient(client.Connect(URLMapperLookupID()))
     lock_URLMapperClient_0.Unlock()
     return client_URLMapperClient_0
 }
 
+func URLMapperLookupID() string { return "urlmapper.URLMapper" } // returns the ID suitable for lookup in the registry. treat as opaque, subject to change.
