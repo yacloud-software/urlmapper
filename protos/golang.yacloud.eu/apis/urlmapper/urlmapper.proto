@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package urlmapper;
+option go_package = "golang.yacloud.eu/apis/urlmapper";
 option java_package = "eu.yacloud.apis.urlmapper";
 import "golang.conradwood.net/apis/common/common.proto";
 
@@ -60,5 +61,3 @@ service URLMapper {
   // add any host mapping
   rpc AddAnyHostMapping(AnyMappingRequest) returns (AnyMappingResponse);
 }
-
-
