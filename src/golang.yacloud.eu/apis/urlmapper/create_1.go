@@ -1,6 +1,6 @@
 // client create: URLMapperClient
 /*
-  Created by /srv/home/cnw/devel/go/go-tools/src/golang.conradwood.net/gotools/protoc-gen-cnw/protoc-gen-cnw.go
+  Created by /home/cnw/devel/go/yatools/src/golang.yacloud.eu/yatools/protoc-gen-cnw/protoc-gen-cnw.go
 */
 
 /* geninfo:
@@ -13,7 +13,7 @@
    varname   : client_URLMapperClient_0
    clientname: URLMapperClient
    servername: URLMapperServer
-   gscvname  : urlmapper.URLMapper
+   gsvcname  : urlmapper.URLMapper
    lockname  : lock_URLMapperClient_0
    activename: active_URLMapperClient_0
 */
@@ -46,3 +46,7 @@ func GetURLMapperClient() URLMapperClient {
 }
 
 func URLMapperLookupID() string { return "urlmapper.URLMapper" } // returns the ID suitable for lookup in the registry. treat as opaque, subject to change.
+
+func init() {
+   client.RegisterDependency("urlmapper.URLMapper")
+}
