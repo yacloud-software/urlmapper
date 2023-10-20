@@ -49,4 +49,5 @@ func URLMapperLookupID() string { return "urlmapper.URLMapper" } // returns the 
 
 func init() {
    client.RegisterDependency("urlmapper.URLMapper")
+   AddService("urlmapper.URLMapper")
 }
