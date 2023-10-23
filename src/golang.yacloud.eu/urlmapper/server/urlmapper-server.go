@@ -35,7 +35,7 @@ func main() {
 	utils.Bail("failed to open sql", err)
 	jsonMapStore = db.NewDBJsonMapping(psql)
 	sd := server.NewServerDef()
-	sd.Port = *port
+	sd.SetPort(*port)
 	sd.Register = server.Register(
 		func(server *grpc.Server) error {
 			e := new(echoServer)
