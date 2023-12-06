@@ -51,3 +51,4 @@ func init() {
    client.RegisterDependency("urlmapper.URLMapper")
    AddService("urlmapper.URLMapper")
 }
+
