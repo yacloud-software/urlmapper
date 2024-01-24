@@ -246,11 +246,11 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 		return nil, err
 	}
 	if len(sv.Services) == 0 {
-		fmt.Printf("No such service: \"%s\"\n", fsr.Name)
+		fmt.Printf("protorenderer knows no no such service: \"%s\"\n", fsr.Name)
 		return nil, errors.NotFound(ctx, "no such service (%s)", fsr.Name)
 	}
 	if len(sv.Services) > 1 {
-		return nil, errors.InvalidArgs(ctx, "no such service", "no such service (%s)", fsr.Name)
+		return nil, errors.InvalidArgs(ctx, "ambigous service name", "protorenderer has multiple definitions of (%s)", fsr.Name)
 	}
 	srv := sv.Services[0]
 	path := srv.PackageFQDN + "/" + srv.Service.Name
@@ -269,8 +269,3 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	res := &pb.AnyMappingResponse{Path: "_api/" + path}
 	return res, nil
 }
-
-
-
-
-

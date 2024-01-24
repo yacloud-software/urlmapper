@@ -66,7 +66,7 @@ func AddSpecific() {
 
 }
 
-//get json mapping from parameters
+// get json mapping from parameters
 func getJsonMap() *pb.JsonMapping {
 	if *mapurl == "" {
 		fmt.Printf("Missing -url\n")
@@ -88,11 +88,11 @@ func getJsonMap() *pb.JsonMapping {
 	sv, err := pr.GetProtoRendererClient().FindServiceByName(ctx, fsr)
 	utils.Bail("failed to get services", err)
 	if len(sv.Services) == 0 {
-		fmt.Printf("No such service: \"%s\"\n", fsr.Name)
+		fmt.Printf("protorenderer knows no such service: \"%s\"\n", fsr.Name)
 		os.Exit(10)
 	}
 	if len(sv.Services) > 1 {
-		fmt.Printf("Multiple (%d) services with name: \"%s\"\n", len(sv.Services), fsr.Name)
+		fmt.Printf("protorenderer has multiple (%d) services with name: \"%s\"\n", len(sv.Services), fsr.Name)
 		os.Exit(10)
 	}
 	res := &pb.JsonMapping{
@@ -102,8 +102,3 @@ func getJsonMap() *pb.JsonMapping {
 	}
 	return res
 }
-
-
-
-
-
