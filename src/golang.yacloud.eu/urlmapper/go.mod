@@ -3,10 +3,10 @@ module golang.yacloud.eu/urlmapper
 go 1.18
 
 require (
-	golang.conradwood.net/apis/common v1.1.2873
+	golang.conradwood.net/apis/common v1.1.2877
 	golang.conradwood.net/apis/ipmanager v1.1.2643
 	golang.conradwood.net/apis/protorenderer v1.1.2643
-	golang.conradwood.net/go-easyops v0.1.25902
+	golang.conradwood.net/go-easyops v0.1.25963
 	golang.yacloud.eu/apis/urlmapper v1.1.1577
 	google.golang.org/grpc v1.62.1
 )
@@ -25,13 +25,13 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	golang.conradwood.net/apis/auth v1.1.2873 // indirect
+	golang.conradwood.net/apis/auth v1.1.2877 // indirect
 	golang.conradwood.net/apis/autodeployer v1.1.2643 // indirect
 	golang.conradwood.net/apis/deploymonkey v1.1.2643 // indirect
 	golang.conradwood.net/apis/echoservice v1.1.2643 // indirect
 	golang.conradwood.net/apis/errorlogger v1.1.2643 // indirect
 	golang.conradwood.net/apis/framework v1.1.2643 // indirect
-	golang.conradwood.net/apis/goeasyops v1.1.2873 // indirect
+	golang.conradwood.net/apis/goeasyops v1.1.2877 // indirect
 	golang.conradwood.net/apis/h2gproxy v1.1.2643 // indirect
 	golang.conradwood.net/apis/objectauth v1.1.2643 // indirect
 	golang.conradwood.net/apis/objectstore v1.1.2643 // indirect
@@ -40,7 +40,7 @@ require (
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.yacloud.eu/apis/fscache v1.1.2643 // indirect
-	golang.yacloud.eu/apis/session v1.1.2873 // indirect
+	golang.yacloud.eu/apis/session v1.1.2877 // indirect
 	golang.yacloud.eu/apis/urlcacher v1.1.2643 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
