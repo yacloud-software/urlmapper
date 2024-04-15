@@ -6,7 +6,7 @@ require (
 	golang.conradwood.net/apis/common v1.1.2900
 	golang.conradwood.net/apis/ipmanager v1.1.2643
 	golang.conradwood.net/apis/protorenderer v1.1.2643
-	golang.conradwood.net/go-easyops v0.1.27139
+	golang.conradwood.net/go-easyops v0.1.27161
 	golang.yacloud.eu/apis/urlmapper v1.1.1577
 	google.golang.org/grpc v1.63.2
 )
