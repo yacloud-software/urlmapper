@@ -19,10 +19,10 @@ Main Table:
  CREATE TABLE jsonmapping (id integer primary key default nextval('jsonmapping_seq'),domain text not null  ,path text not null  ,serviceid text not null  ,groupid text not null  );
 
 Alter statements:
-ALTER TABLE jsonmapping ADD COLUMN domain text not null default '';
-ALTER TABLE jsonmapping ADD COLUMN path text not null default '';
-ALTER TABLE jsonmapping ADD COLUMN serviceid text not null default '';
-ALTER TABLE jsonmapping ADD COLUMN groupid text not null default '';
+ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS domain text not null default '';
+ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS path text not null default '';
+ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS serviceid text not null default '';
+ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS groupid text not null default '';
 
 
 Archive Table: (structs can be moved from main to archive using Archive() function)
@@ -85,7 +85,7 @@ func (a *DBJsonMapping) Archive(ctx context.Context, id uint64) error {
 	}
 
 	// now save it to archive:
-	_, e := a.DB.ExecContext(ctx, "archive_DBJsonMapping", "insert into "+a.SQLArchivetablename+"+ (id,domain, path, serviceid, groupid) values ($1,$2, $3, $4, $5) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID)
+	_, e := a.DB.ExecContext(ctx, "archive_DBJsonMapping", "insert into "+a.SQLArchivetablename+" (id,domain, path, serviceid, groupid) values ($1,$2, $3, $4, $5) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID)
 	if e != nil {
 		return e
 	}
@@ -98,7 +98,7 @@ func (a *DBJsonMapping) Archive(ctx context.Context, id uint64) error {
 // Save (and use database default ID generation)
 func (a *DBJsonMapping) Save(ctx context.Context, p *savepb.JsonMapping) (uint64, error) {
 	qn := "DBJsonMapping_Save"
-	rows, e := a.DB.QueryContext(ctx, qn, "insert into "+a.SQLTablename+" (domain, path, serviceid, groupid) values ($1, $2, $3, $4) returning id", p.Domain, p.Path, p.ServiceID, p.GroupID)
+	rows, e := a.DB.QueryContext(ctx, qn, "insert into "+a.SQLTablename+" (domain, path, serviceid, groupid) values ($1, $2, $3, $4) returning id", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p))
 	if e != nil {
 		return 0, a.Error(ctx, qn, e)
 	}
@@ -124,7 +124,7 @@ func (a *DBJsonMapping) SaveWithID(ctx context.Context, p *savepb.JsonMapping) e
 
 func (a *DBJsonMapping) Update(ctx context.Context, p *savepb.JsonMapping) error {
 	qn := "DBJsonMapping_Update"
-	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set domain=$1, path=$2, serviceid=$3, groupid=$4 where id = $5", p.Domain, p.Path, p.ServiceID, p.GroupID, p.ID)
+	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set domain=$1, path=$2, serviceid=$3, groupid=$4 where id = $5", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p), p.ID)
 
 	return a.Error(ctx, qn, e)
 }
@@ -150,6 +150,27 @@ func (a *DBJsonMapping) ByID(ctx context.Context, p uint64) (*savepb.JsonMapping
 	}
 	if len(l) == 0 {
 		return nil, a.Error(ctx, qn, fmt.Errorf("No JsonMapping with id %v", p))
+	}
+	if len(l) != 1 {
+		return nil, a.Error(ctx, qn, fmt.Errorf("Multiple (%d) JsonMapping with id %v", len(l), p))
+	}
+	return l[0], nil
+}
+
+// get it by primary id (nil if no such ID row, but no error either)
+func (a *DBJsonMapping) TryByID(ctx context.Context, p uint64) (*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_TryByID"
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where id = $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("TryByID: error querying (%s)", e))
+	}
+	defer rows.Close()
+	l, e := a.FromRows(ctx, rows)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("TryByID: error scanning (%s)", e))
+	}
+	if len(l) == 0 {
+		return nil, nil
 	}
 	if len(l) != 1 {
 		return nil, a.Error(ctx, qn, fmt.Errorf("Multiple (%d) JsonMapping with id %v", len(l), p))
@@ -297,6 +318,30 @@ func (a *DBJsonMapping) ByLikeGroupID(ctx context.Context, p string) ([]*savepb.
 }
 
 /**********************************************************************
+* The field getters
+**********************************************************************/
+
+func (a *DBJsonMapping) get_ID(p *savepb.JsonMapping) uint64 {
+	return p.ID
+}
+
+func (a *DBJsonMapping) get_Domain(p *savepb.JsonMapping) string {
+	return p.Domain
+}
+
+func (a *DBJsonMapping) get_Path(p *savepb.JsonMapping) string {
+	return p.Path
+}
+
+func (a *DBJsonMapping) get_ServiceID(p *savepb.JsonMapping) string {
+	return p.ServiceID
+}
+
+func (a *DBJsonMapping) get_GroupID(p *savepb.JsonMapping) string {
+	return p.GroupID
+}
+
+/**********************************************************************
 * Helper to convert from an SQL Query
 **********************************************************************/
 
@@ -323,7 +368,7 @@ func (a *DBJsonMapping) SelectColsQualified() string {
 	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".domain, " + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".groupid"
 }
 
-func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*savepb.JsonMapping, error) {
+func (a *DBJsonMapping) FromRowsOld(ctx context.Context, rows *gosql.Rows) ([]*savepb.JsonMapping, error) {
 	var res []*savepb.JsonMapping
 	for rows.Next() {
 		foo := savepb.JsonMapping{}
@@ -335,6 +380,28 @@ func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*save
 	}
 	return res, nil
 }
+func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*savepb.JsonMapping, error) {
+	var res []*savepb.JsonMapping
+	for rows.Next() {
+		// SCANNER:
+		foo := &savepb.JsonMapping{}
+		// create the non-nullable pointers
+		// create variables for scan results
+		scanTarget_0 := &foo.ID
+		scanTarget_1 := &foo.Domain
+		scanTarget_2 := &foo.Path
+		scanTarget_3 := &foo.ServiceID
+		scanTarget_4 := &foo.GroupID
+		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4)
+		// END SCANNER
+
+		if err != nil {
+			return nil, a.Error(ctx, "fromrow-scan", err)
+		}
+		res = append(res, foo)
+	}
+	return res, nil
+}
 
 /**********************************************************************
 * Helper to create table and columns
@@ -342,14 +409,35 @@ func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*save
 func (a *DBJsonMapping) CreateTable(ctx context.Context) error {
 	csql := []string{
 		`create sequence if not exists ` + a.SQLTablename + `_seq;`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null  ,path text not null  ,serviceid text not null  ,groupid text not null  );`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null  ,path text not null  ,serviceid text not null  ,groupid text not null  );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null );`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS domain text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS path text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS serviceid text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS groupid text not null default '';`,
+
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS domain text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS path text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS serviceid text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS groupid text not null  default '';`,
 	}
+
 	for i, c := range csql {
 		_, e := a.DB.ExecContext(ctx, fmt.Sprintf("create_"+a.SQLTablename+"_%d", i), c)
 		if e != nil {
 			return e
 		}
+	}
+
+	// these are optional, expected to fail
+	csql = []string{
+		// Indices:
+
+		// Foreign keys:
+
+	}
+	for i, c := range csql {
+		a.DB.ExecContextQuiet(ctx, fmt.Sprintf("create_"+a.SQLTablename+"_%d", i), c)
 	}
 	return nil
 }
@@ -363,8 +451,4 @@ func (a *DBJsonMapping) Error(ctx context.Context, q string, e error) error {
 	}
 	return fmt.Errorf("[table="+a.SQLTablename+", query=%s] Error: %s", q, e)
 }
-
-
-
-
 

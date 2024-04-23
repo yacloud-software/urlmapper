@@ -259,8 +259,9 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	fmt.Printf("ProtoRenderService: %#v -> path=%s\n", srv.Service, path)
 	fmt.Printf("ProtoRenderPackage: %#v -> path=%s\n", srv.Package, path)
 	ahm := &pb.AnyHostMapping{
-		Path:      path,
-		ServiceID: sv.Services[0].Service.ID,
+		Path:        path,
+		ServiceID:   sv.Services[0].Service.ID,
+		ServiceName: req.ServiceName,
 	}
 	_, err = db.DefaultDBAnyHostMapping().Save(ctx, ahm)
 	if err != nil {
