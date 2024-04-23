@@ -34,6 +34,7 @@ message AnyHostMapping {
   uint64 ID=1;
   string Path=2 [(common.sql_unique)="true"];
   string ServiceID=3; // the serviceid in protorenderer to which refers
+  string ServiceName=4; // service name like it registers
 }
 message AnyMappingRequest {
   string Path=1 ;
