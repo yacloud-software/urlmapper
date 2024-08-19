@@ -333,11 +333,3 @@ func (e *echoServer) GetAllMappings(ctx context.Context, req *common.Void) (*pb.
 	return res, nil
 
 }
-
-func id_to_service_name(ctx context.Context, serviceid string) string {
-	res, err := protomanager.GetProtoManagerClient().FindServiceByID(ctx, &protomanager.ID{ID: serviceid})
-	if err != nil {
-		return fmt.Sprintf("noservice(%s)", err)
-	}
-	return res.Name
-}
