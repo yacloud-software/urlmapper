@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	//	prender "golang.conradwood.net/apis/protorenderer"
+	"golang.conradwood.net/apis/protorenderer"
 	"golang.conradwood.net/go-easyops/cache"
 	"golang.yacloud.eu/apis/protomanager"
 	"time"
+)
+
+const (
+	USE_PROTOMANAGER = false
 )
 
 var (
@@ -19,11 +23,21 @@ func getServiceName(ctx context.Context, serviceid string) (string, error) {
 		sobj := obj.(string)
 		return sobj, nil
 	}
-	p, err := protomanager.GetProtoManagerClient().FindServiceByID(ctx, &protomanager.ID{ID: serviceid})
-	if err != nil {
-		return "", err
+	servicename := ""
+	if USE_PROTOMANAGER {
+		p, err := protomanager.GetProtoManagerClient().FindServiceByID(ctx, &protomanager.ID{ID: serviceid})
+		if err != nil {
+			return "", err
+		}
+		servicename = p.Name
+	} else {
+		p, err := protorenderer.GetProtoRendererClient().FindServiceByID(ctx, &protorenderer.ID{ID: serviceid})
+		if err != nil {
+			return "", err
+		}
+		servicename = fmt.Sprintf("%s.%s", p.PackageName, p.Service.Name)
+
 	}
-	servicename := p.Name
 	scache.Put(serviceid, servicename)
 	return servicename, nil
 }
