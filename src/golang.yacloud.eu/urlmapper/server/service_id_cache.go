@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	USE_PROTOMANAGER = false
+	USE_PROTOMANAGER = true
 )
 
 var (
@@ -29,7 +29,7 @@ func getServiceName(ctx context.Context, serviceid string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		servicename = p.Name
+		servicename = fmt.Sprintf("%s.%s", p.Package, p.Name)
 	} else {
 		p, err := protorenderer.GetProtoRendererClient().FindServiceByID(ctx, &protorenderer.ID{ID: serviceid})
 		if err != nil {
