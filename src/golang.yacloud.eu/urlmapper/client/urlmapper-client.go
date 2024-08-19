@@ -37,14 +37,18 @@ func main() {
 	ctx := authremote.Context()
 
 	empty := &common.Void{}
-	response, err := echoClient.GetJsonMappings(ctx, empty)
+	response, err := echoClient.GetAllMappings(ctx, empty)
 	utils.Bail("Failed to ping server", err)
-	fmt.Printf("%d mappings:\n", len(response.Responses))
-	for _, r := range response.Responses {
-		m := r.Mapping
-		fmt.Printf("%d %s/%s -> %s\n", m.ID, m.Domain, m.Path, r.GRPCService)
+	t := utils.Table{}
+	t.AddHeaders("serviceid", "servicename", "domain", "path")
+	for _, am := range response.AllMappings {
+		t.AddString(am.ServiceID)
+		t.AddString(am.ServiceName)
+		t.AddString(am.Domain)
+		t.AddString(am.Path)
+		t.NewRow()
 	}
-
+	fmt.Println(t.ToPrettyString())
 	fmt.Printf("Done.\n")
 	os.Exit(0)
 }

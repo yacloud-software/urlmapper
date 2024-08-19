@@ -6,16 +6,19 @@ import (
 	"fmt"
 	"golang.conradwood.net/apis/common"
 	ipm "golang.conradwood.net/apis/ipmanager"
-	pr "golang.conradwood.net/apis/protorenderer"
+	//	pr "golang.conradwood.net/apis/protorenderer"
 	"golang.conradwood.net/go-easyops/auth"
 	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/server"
 	"golang.conradwood.net/go-easyops/sql"
 	"golang.conradwood.net/go-easyops/utils"
+	"golang.yacloud.eu/apis/protomanager"
 	pb "golang.yacloud.eu/apis/urlmapper"
 	"golang.yacloud.eu/urlmapper/db"
 	"google.golang.org/grpc"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -241,8 +244,8 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	if req.ServiceName == "" {
 		return nil, errors.InvalidArgs(ctx, "missing service name", "missing service name")
 	}
-	fsr := &pr.FindServiceByNameRequest{Name: req.ServiceName}
-	sv, err := pr.GetProtoRendererClient().FindServiceByName(ctx, fsr)
+	fsr := &protomanager.ServicesByNameRequest{Name: req.ServiceName}
+	sv, err := protomanager.GetProtoManagerClient().FindServicesByName(ctx, fsr)
 	if err != nil {
 		return nil, err
 	}
@@ -254,14 +257,33 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 		return nil, errors.InvalidArgs(ctx, "ambigous service name", "protorenderer has multiple definitions of (%s)", fsr.Name)
 	}
 	srv := sv.Services[0]
-	path := srv.PackageFQDN + "/" + srv.Service.Name
-	//	path = strings.ToLower(path)
+	path := srv.PackageFQDN + "/" + srv.Name
+	serviceid := srv.ID
+	/*
+					fsr := &pr.FindServiceByNameRequest{Name: req.ServiceName}
+						sv, err := pr.GetProtoRendererClient().FindServiceByName(ctx, fsr)
+						if err != nil {
+							return nil, err
+						}
+						if len(sv.Services) == 0 {
+							fmt.Printf("protorenderer knows no no such service: \"%s\"\n", fsr.Name)
+							return nil, errors.NotFound(ctx, "no such service (%s)", fsr.Name)
+						}
+						if len(sv.Services) > 1 {
+							return nil, errors.InvalidArgs(ctx, "ambigous service name", "protorenderer has multiple definitions of (%s)", fsr.Name)
+						}
+						srv := sv.Services[0]
+						path := srv.PackageFQDN + "/" + srv.Service.Name
+						//	path = strings.ToLower(path)
+				fmt.Printf("ProtoRenderService: %#v -> path=%s\n", srv.Service, path)
+				fmt.Printf("ProtoRenderPackage: %#v -> path=%s\n", srv.Package, path)
+		serviceid:=sv.Services[0].Service.ID,
+	*/
+
 	fmt.Printf("Adding Service: %#v -> path=%s\n", srv, path)
-	fmt.Printf("ProtoRenderService: %#v -> path=%s\n", srv.Service, path)
-	fmt.Printf("ProtoRenderPackage: %#v -> path=%s\n", srv.Package, path)
 	ahm := &pb.AnyHostMapping{
 		Path:        path,
-		ServiceID:   sv.Services[0].Service.ID,
+		ServiceID:   serviceid,
 		ServiceName: req.ServiceName,
 	}
 	_, err = db.DefaultDBAnyHostMapping().Save(ctx, ahm)
@@ -270,4 +292,52 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	}
 	res := &pb.AnyMappingResponse{Path: "_api/" + path}
 	return res, nil
+}
+
+func (e *echoServer) GetAllMappings(ctx context.Context, req *common.Void) (*pb.AllMappingList, error) {
+	res := &pb.AllMappingList{}
+
+	// *** do json mappings *** /
+	jms, err := jsonMapStore.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, jm := range jms {
+		a := &pb.AllMapping{
+			ServiceID:   jm.ServiceID,
+			ServiceName: id_to_service_name(ctx, jm.ServiceID),
+			Domain:      jm.Domain,
+			Path:        jm.Path,
+		}
+		res.AllMappings = append(res.AllMappings, a)
+	}
+	// *** do any mappings *** /
+	ams, err := db.DefaultDBAnyHostMapping().All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, am := range ams {
+		a := &pb.AllMapping{
+			ServiceID:   am.ServiceID,
+			ServiceName: id_to_service_name(ctx, am.ServiceID),
+			Domain:      "*",
+			Path:        am.Path,
+		}
+		res.AllMappings = append(res.AllMappings, a)
+	}
+	sort.Slice(res.AllMappings, func(i, j int) bool {
+		x1, _ := strconv.Atoi(res.AllMappings[i].ServiceID) // TODO: error handler?
+		x2, _ := strconv.Atoi(res.AllMappings[j].ServiceID)
+		return x1 < x2
+	})
+	return res, nil
+
+}
+
+func id_to_service_name(ctx context.Context, serviceid string) string {
+	res, err := protomanager.GetProtoManagerClient().FindServiceByID(ctx, &protomanager.ID{ID: serviceid})
+	if err != nil {
+		return fmt.Sprintf("noservice(%s)", err)
+	}
+	return res.Name
 }
