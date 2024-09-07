@@ -15,10 +15,10 @@ import (
 	"golang.yacloud.eu/apis/protomanager"
 	pb "golang.yacloud.eu/apis/urlmapper"
 	"golang.yacloud.eu/urlmapper/db"
+	"golang.yacloud.eu/urlmapper/migrate"
 	"google.golang.org/grpc"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -34,6 +34,7 @@ type echoServer struct {
 func main() {
 	flag.Parse()
 	fmt.Printf("Starting URLMapperServer...\n")
+	utils.Bail("failed to migrate", migrate.Start())
 	psql, err := sql.Open()
 	utils.Bail("failed to open sql", err)
 	jsonMapStore = db.NewDBJsonMapping(psql)
@@ -92,12 +93,12 @@ func (e *echoServer) GetJsonMappings(ctx context.Context, req *common.Void) (*pb
 	res := &pb.JsonMappingResponseList{}
 	for _, r := range jms {
 		jmr := &pb.JsonMappingResponse{Mapping: r}
-		sname, err := getServiceName(ctx, jmr.Mapping.ServiceID)
+		sname, err := getServiceByFQDN(ctx, jmr.Mapping.FQDNServiceName)
 		if err != nil {
-			fmt.Printf("Service with ID \"%s\" not found: %s\n", jmr.Mapping.ServiceID, utils.ErrorString(err))
+			fmt.Printf("Service with ID \"%s\" not found: %s\n", jmr.Mapping.FQDNServiceName, utils.ErrorString(err))
 			return nil, err
 		}
-		jmr.GRPCService = sname
+		jmr.GRPCService = sname.RegistryName()
 		res.Responses = append(res.Responses, jmr)
 	}
 	return res, nil
@@ -126,15 +127,15 @@ func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingR
 		}
 		if len(ahms) > 0 {
 			ah := ahms[0]
-			sname, err := getServiceName(ctx, ah.ServiceID)
+			sname, err := getServiceByFQDN(ctx, ah.FQDNServiceName)
 			if err != nil {
-				fmt.Printf("Service with ID \"%s\" not found: %s\n", ah.ServiceID, utils.ErrorString(err))
+				fmt.Printf("Service with ID \"%s\" not found: %s\n", ah.FQDNServiceName, utils.ErrorString(err))
 				return nil, err
 			}
-			jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + ah.Path, ServiceID: ah.ServiceID, GroupID: ""}
+			jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + ah.Path, GroupID: ""}
 			res := &pb.JsonMappingResponse{
 				Mapping:     jm,
-				GRPCService: sname,
+				GRPCService: sname.RegistryName(),
 			}
 			return res, nil
 		}
@@ -158,14 +159,14 @@ func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingR
 		}
 	}
 	if jm != nil {
-		sname, err := getServiceName(ctx, jm.ServiceID)
+		sname, err := getServiceByFQDN(ctx, jm.FQDNServiceName)
 		if err != nil {
-			fmt.Printf("Service with ID \"%s\" not found: %s\n", jm.ServiceID, utils.ErrorString(err))
+			fmt.Printf("Service with ID \"%s\" not found: %s\n", jm.FQDNServiceName, utils.ErrorString(err))
 			return nil, err
 		}
 		res := &pb.JsonMappingResponse{
 			Mapping:     jm,
-			GRPCService: sname,
+			GRPCService: sname.RegistryName(),
 		}
 		return res, nil
 	}
@@ -203,6 +204,7 @@ func (e *echoServer) GetJsonDomains(ctx context.Context, req *common.Void) (*pb.
 	return res, nil
 }
 
+/*
 func (e *echoServer) GetServiceMappings(ctx context.Context, req *pb.ServiceID) (*pb.JsonMappingResponseList, error) {
 	if *debug {
 		fmt.Printf("Getting jsonmapping for service #%s\n", req.ID)
@@ -213,7 +215,7 @@ func (e *echoServer) GetServiceMappings(ctx context.Context, req *pb.ServiceID) 
 	}
 	res := &pb.JsonMappingResponseList{}
 	for _, jm := range jms {
-		sname, err := getServiceName(ctx, jm.ServiceID)
+		sname, err := getServiceByFQDN(ctx, jm.FQDNServiceName)
 		if err != nil {
 			fmt.Printf("Service with ID \"%s\" not found: %s\n", jm.ServiceID, utils.ErrorString(err))
 			return nil, err
@@ -233,13 +235,14 @@ func (e *echoServer) GetServiceMappings(ctx context.Context, req *pb.ServiceID) 
 		return nil, err
 	}
 	for _, a := range anys {
-		jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + a.Path, ServiceID: req.ID, GroupID: ""}
+		jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + a.Path, GroupID: ""}
 		r := &pb.JsonMappingResponse{Mapping: jm, GRPCService: sname}
 		res.Responses = append(res.Responses, r)
 	}
 	return res, nil
-
 }
+*/
+
 func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRequest) (*pb.AnyMappingResponse, error) {
 	if req.ServiceName == "" {
 		return nil, errors.InvalidArgs(ctx, "missing service name", "missing service name")
@@ -258,33 +261,13 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	}
 	srv := sv.Services[0]
 	path := srv.PackageFQDN + "/" + srv.Name
-	serviceid := srv.ID
-	/*
-					fsr := &pr.FindServiceByNameRequest{Name: req.ServiceName}
-						sv, err := pr.GetProtoRendererClient().FindServiceByName(ctx, fsr)
-						if err != nil {
-							return nil, err
-						}
-						if len(sv.Services) == 0 {
-							fmt.Printf("protorenderer knows no no such service: \"%s\"\n", fsr.Name)
-							return nil, errors.NotFound(ctx, "no such service (%s)", fsr.Name)
-						}
-						if len(sv.Services) > 1 {
-							return nil, errors.InvalidArgs(ctx, "ambigous service name", "protorenderer has multiple definitions of (%s)", fsr.Name)
-						}
-						srv := sv.Services[0]
-						path := srv.PackageFQDN + "/" + srv.Service.Name
-						//	path = strings.ToLower(path)
-				fmt.Printf("ProtoRenderService: %#v -> path=%s\n", srv.Service, path)
-				fmt.Printf("ProtoRenderPackage: %#v -> path=%s\n", srv.Package, path)
-		serviceid:=sv.Services[0].Service.ID,
-	*/
+	//serviceid := srv.ID
 
 	fmt.Printf("Adding Service: %#v -> path=%s\n", srv, path)
 	ahm := &pb.AnyHostMapping{
-		Path:        path,
-		ServiceID:   serviceid,
-		ServiceName: req.ServiceName,
+		Path:            path,
+		ServiceName:     req.ServiceName,
+		FQDNServiceName: path,
 	}
 	_, err = db.DefaultDBAnyHostMapping().Save(ctx, ahm)
 	if err != nil {
@@ -303,9 +286,10 @@ func (e *echoServer) GetAllMappings(ctx context.Context, req *common.Void) (*pb.
 		return nil, err
 	}
 	for _, jm := range jms {
+
 		a := &pb.AllMapping{
-			ServiceID:   jm.ServiceID,
-			ServiceName: id_to_service_name(ctx, jm.ServiceID),
+			ServiceID:   "",
+			ServiceName: jm.ServiceName,
 			Domain:      jm.Domain,
 			Path:        jm.Path,
 		}
@@ -318,17 +302,15 @@ func (e *echoServer) GetAllMappings(ctx context.Context, req *common.Void) (*pb.
 	}
 	for _, am := range ams {
 		a := &pb.AllMapping{
-			ServiceID:   am.ServiceID,
-			ServiceName: id_to_service_name(ctx, am.ServiceID),
+			//	ServiceID:   am.ServiceID,
+			ServiceName: am.ServiceName,
 			Domain:      "*",
 			Path:        am.Path,
 		}
 		res.AllMappings = append(res.AllMappings, a)
 	}
 	sort.Slice(res.AllMappings, func(i, j int) bool {
-		x1, _ := strconv.Atoi(res.AllMappings[i].ServiceID) // TODO: error handler?
-		x2, _ := strconv.Atoi(res.AllMappings[j].ServiceID)
-		return x1 < x2
+		return res.AllMappings[i].ServiceName < res.AllMappings[j].ServiceName
 	})
 	return res, nil
 

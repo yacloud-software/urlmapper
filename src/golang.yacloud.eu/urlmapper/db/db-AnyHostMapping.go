@@ -16,17 +16,18 @@ package db
 
 Main Table:
 
- CREATE TABLE anyhostmapping (id integer primary key default nextval('anyhostmapping_seq'),path text not null  unique  ,serviceid text not null  ,servicename text not null  );
+ CREATE TABLE anyhostmapping (id integer primary key default nextval('anyhostmapping_seq'),path text not null  unique  ,serviceid text not null  ,servicename text not null  ,fqdnservicename text not null  );
 
 Alter statements:
 ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS path text not null unique  default '';
 ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS serviceid text not null default '';
 ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS servicename text not null default '';
+ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';
 
 
 Archive Table: (structs can be moved from main to archive using Archive() function)
 
- CREATE TABLE anyhostmapping_archive (id integer unique not null,path text not null,serviceid text not null,servicename text not null);
+ CREATE TABLE anyhostmapping_archive (id integer unique not null,path text not null,serviceid text not null,servicename text not null,fqdnservicename text not null);
 */
 
 import (
@@ -84,7 +85,7 @@ func (a *DBAnyHostMapping) Archive(ctx context.Context, id uint64) error {
 	}
 
 	// now save it to archive:
-	_, e := a.DB.ExecContext(ctx, "archive_DBAnyHostMapping", "insert into "+a.SQLArchivetablename+" (id,path, serviceid, servicename) values ($1,$2, $3, $4) ", p.ID, p.Path, p.ServiceID, p.ServiceName)
+	_, e := a.DB.ExecContext(ctx, "archive_DBAnyHostMapping", "insert into "+a.SQLArchivetablename+" (id,path, serviceid, servicename, fqdnservicename) values ($1,$2, $3, $4, $5) ", p.ID, p.Path, p.ServiceID, p.ServiceName, p.FQDNServiceName)
 	if e != nil {
 		return e
 	}
@@ -97,7 +98,7 @@ func (a *DBAnyHostMapping) Archive(ctx context.Context, id uint64) error {
 // Save (and use database default ID generation)
 func (a *DBAnyHostMapping) Save(ctx context.Context, p *savepb.AnyHostMapping) (uint64, error) {
 	qn := "DBAnyHostMapping_Save"
-	rows, e := a.DB.QueryContext(ctx, qn, "insert into "+a.SQLTablename+" (path, serviceid, servicename) values ($1, $2, $3) returning id", a.get_Path(p), a.get_ServiceID(p), a.get_ServiceName(p))
+	rows, e := a.DB.QueryContext(ctx, qn, "insert into "+a.SQLTablename+" (path, serviceid, servicename, fqdnservicename) values ($1, $2, $3, $4) returning id", a.get_Path(p), a.get_ServiceID(p), a.get_ServiceName(p), a.get_FQDNServiceName(p))
 	if e != nil {
 		return 0, a.Error(ctx, qn, e)
 	}
@@ -117,13 +118,13 @@ func (a *DBAnyHostMapping) Save(ctx context.Context, p *savepb.AnyHostMapping) (
 // Save using the ID specified
 func (a *DBAnyHostMapping) SaveWithID(ctx context.Context, p *savepb.AnyHostMapping) error {
 	qn := "insert_DBAnyHostMapping"
-	_, e := a.DB.ExecContext(ctx, qn, "insert into "+a.SQLTablename+" (id,path, serviceid, servicename) values ($1,$2, $3, $4) ", p.ID, p.Path, p.ServiceID, p.ServiceName)
+	_, e := a.DB.ExecContext(ctx, qn, "insert into "+a.SQLTablename+" (id,path, serviceid, servicename, fqdnservicename) values ($1,$2, $3, $4, $5) ", p.ID, p.Path, p.ServiceID, p.ServiceName, p.FQDNServiceName)
 	return a.Error(ctx, qn, e)
 }
 
 func (a *DBAnyHostMapping) Update(ctx context.Context, p *savepb.AnyHostMapping) error {
 	qn := "DBAnyHostMapping_Update"
-	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set path=$1, serviceid=$2, servicename=$3 where id = $4", a.get_Path(p), a.get_ServiceID(p), a.get_ServiceName(p), p.ID)
+	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set path=$1, serviceid=$2, servicename=$3, fqdnservicename=$4 where id = $5", a.get_Path(p), a.get_ServiceID(p), a.get_ServiceName(p), a.get_FQDNServiceName(p), p.ID)
 
 	return a.Error(ctx, qn, e)
 }
@@ -138,7 +139,7 @@ func (a *DBAnyHostMapping) DeleteByID(ctx context.Context, p uint64) error {
 // get it by primary id
 func (a *DBAnyHostMapping) ByID(ctx context.Context, p uint64) (*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_ByID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where id = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where id = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByID: error querying (%s)", e))
 	}
@@ -159,7 +160,7 @@ func (a *DBAnyHostMapping) ByID(ctx context.Context, p uint64) (*savepb.AnyHostM
 // get it by primary id (nil if no such ID row, but no error either)
 func (a *DBAnyHostMapping) TryByID(ctx context.Context, p uint64) (*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_TryByID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where id = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where id = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("TryByID: error querying (%s)", e))
 	}
@@ -180,7 +181,7 @@ func (a *DBAnyHostMapping) TryByID(ctx context.Context, p uint64) (*savepb.AnyHo
 // get all rows
 func (a *DBAnyHostMapping) All(ctx context.Context) ([]*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_all"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" order by id")
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" order by id")
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("All: error querying (%s)", e))
 	}
@@ -199,7 +200,7 @@ func (a *DBAnyHostMapping) All(ctx context.Context) ([]*savepb.AnyHostMapping, e
 // get all "DBAnyHostMapping" rows with matching Path
 func (a *DBAnyHostMapping) ByPath(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_ByPath"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where path = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where path = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByPath: error querying (%s)", e))
 	}
@@ -214,7 +215,7 @@ func (a *DBAnyHostMapping) ByPath(ctx context.Context, p string) ([]*savepb.AnyH
 // the 'like' lookup
 func (a *DBAnyHostMapping) ByLikePath(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_ByLikePath"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where path ilike $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where path ilike $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByPath: error querying (%s)", e))
 	}
@@ -229,7 +230,7 @@ func (a *DBAnyHostMapping) ByLikePath(ctx context.Context, p string) ([]*savepb.
 // get all "DBAnyHostMapping" rows with matching ServiceID
 func (a *DBAnyHostMapping) ByServiceID(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_ByServiceID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where serviceid = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where serviceid = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceID: error querying (%s)", e))
 	}
@@ -244,7 +245,7 @@ func (a *DBAnyHostMapping) ByServiceID(ctx context.Context, p string) ([]*savepb
 // the 'like' lookup
 func (a *DBAnyHostMapping) ByLikeServiceID(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_ByLikeServiceID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where serviceid ilike $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where serviceid ilike $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceID: error querying (%s)", e))
 	}
@@ -259,7 +260,7 @@ func (a *DBAnyHostMapping) ByLikeServiceID(ctx context.Context, p string) ([]*sa
 // get all "DBAnyHostMapping" rows with matching ServiceName
 func (a *DBAnyHostMapping) ByServiceName(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_ByServiceName"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where servicename = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where servicename = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceName: error querying (%s)", e))
 	}
@@ -274,7 +275,7 @@ func (a *DBAnyHostMapping) ByServiceName(ctx context.Context, p string) ([]*save
 // the 'like' lookup
 func (a *DBAnyHostMapping) ByLikeServiceName(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
 	qn := "DBAnyHostMapping_ByLikeServiceName"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename from "+a.SQLTablename+" where servicename ilike $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where servicename ilike $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceName: error querying (%s)", e))
 	}
@@ -286,24 +287,63 @@ func (a *DBAnyHostMapping) ByLikeServiceName(ctx context.Context, p string) ([]*
 	return l, nil
 }
 
+// get all "DBAnyHostMapping" rows with matching FQDNServiceName
+func (a *DBAnyHostMapping) ByFQDNServiceName(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
+	qn := "DBAnyHostMapping_ByFQDNServiceName"
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where fqdnservicename = $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error querying (%s)", e))
+	}
+	defer rows.Close()
+	l, e := a.FromRows(ctx, rows)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// the 'like' lookup
+func (a *DBAnyHostMapping) ByLikeFQDNServiceName(ctx context.Context, p string) ([]*savepb.AnyHostMapping, error) {
+	qn := "DBAnyHostMapping_ByLikeFQDNServiceName"
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,path, serviceid, servicename, fqdnservicename from "+a.SQLTablename+" where fqdnservicename ilike $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error querying (%s)", e))
+	}
+	defer rows.Close()
+	l, e := a.FromRows(ctx, rows)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
 /**********************************************************************
 * The field getters
 **********************************************************************/
 
+// getter for field "ID" (ID) [uint64]
 func (a *DBAnyHostMapping) get_ID(p *savepb.AnyHostMapping) uint64 {
-	return p.ID
+	return uint64(p.ID)
 }
 
+// getter for field "Path" (Path) [string]
 func (a *DBAnyHostMapping) get_Path(p *savepb.AnyHostMapping) string {
-	return p.Path
+	return string(p.Path)
 }
 
+// getter for field "ServiceID" (ServiceID) [string]
 func (a *DBAnyHostMapping) get_ServiceID(p *savepb.AnyHostMapping) string {
-	return p.ServiceID
+	return string(p.ServiceID)
 }
 
+// getter for field "ServiceName" (ServiceName) [string]
 func (a *DBAnyHostMapping) get_ServiceName(p *savepb.AnyHostMapping) string {
-	return p.ServiceName
+	return string(p.ServiceName)
+}
+
+// getter for field "FQDNServiceName" (FQDNServiceName) [string]
+func (a *DBAnyHostMapping) get_FQDNServiceName(p *savepb.AnyHostMapping) string {
+	return string(p.FQDNServiceName)
 }
 
 /**********************************************************************
@@ -327,17 +367,17 @@ func (a *DBAnyHostMapping) Tablename() string {
 }
 
 func (a *DBAnyHostMapping) SelectCols() string {
-	return "id,path, serviceid, servicename"
+	return "id,path, serviceid, servicename, fqdnservicename"
 }
 func (a *DBAnyHostMapping) SelectColsQualified() string {
-	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".servicename"
+	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".servicename, " + a.SQLTablename + ".fqdnservicename"
 }
 
 func (a *DBAnyHostMapping) FromRowsOld(ctx context.Context, rows *gosql.Rows) ([]*savepb.AnyHostMapping, error) {
 	var res []*savepb.AnyHostMapping
 	for rows.Next() {
 		foo := savepb.AnyHostMapping{}
-		err := rows.Scan(&foo.ID, &foo.Path, &foo.ServiceID, &foo.ServiceName)
+		err := rows.Scan(&foo.ID, &foo.Path, &foo.ServiceID, &foo.ServiceName, &foo.FQDNServiceName)
 		if err != nil {
 			return nil, a.Error(ctx, "fromrow-scan", err)
 		}
@@ -356,7 +396,8 @@ func (a *DBAnyHostMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*s
 		scanTarget_1 := &foo.Path
 		scanTarget_2 := &foo.ServiceID
 		scanTarget_3 := &foo.ServiceName
-		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3)
+		scanTarget_4 := &foo.FQDNServiceName
+		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4)
 		// END SCANNER
 
 		if err != nil {
@@ -373,15 +414,17 @@ func (a *DBAnyHostMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*s
 func (a *DBAnyHostMapping) CreateTable(ctx context.Context) error {
 	csql := []string{
 		`create sequence if not exists ` + a.SQLTablename + `_seq;`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null );`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null ,fqdnservicename text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null ,fqdnservicename text not null );`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS path text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS serviceid text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS servicename text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';`,
 
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS path text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS serviceid text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS servicename text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS fqdnservicename text not null  default '';`,
 	}
 
 	for i, c := range csql {

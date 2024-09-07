@@ -16,18 +16,20 @@ package db
 
 Main Table:
 
- CREATE TABLE jsonmapping (id integer primary key default nextval('jsonmapping_seq'),domain text not null  ,path text not null  ,serviceid text not null  ,groupid text not null  );
+ CREATE TABLE jsonmapping (id integer primary key default nextval('jsonmapping_seq'),domain text not null  ,path text not null  ,serviceid text not null  ,groupid text not null  ,fqdnservicename text not null  ,servicename text not null  );
 
 Alter statements:
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS domain text not null default '';
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS path text not null default '';
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS serviceid text not null default '';
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS groupid text not null default '';
+ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';
+ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS servicename text not null default '';
 
 
 Archive Table: (structs can be moved from main to archive using Archive() function)
 
- CREATE TABLE jsonmapping_archive (id integer unique not null,domain text not null,path text not null,serviceid text not null,groupid text not null);
+ CREATE TABLE jsonmapping_archive (id integer unique not null,domain text not null,path text not null,serviceid text not null,groupid text not null,fqdnservicename text not null,servicename text not null);
 */
 
 import (
@@ -85,7 +87,7 @@ func (a *DBJsonMapping) Archive(ctx context.Context, id uint64) error {
 	}
 
 	// now save it to archive:
-	_, e := a.DB.ExecContext(ctx, "archive_DBJsonMapping", "insert into "+a.SQLArchivetablename+" (id,domain, path, serviceid, groupid) values ($1,$2, $3, $4, $5) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID)
+	_, e := a.DB.ExecContext(ctx, "archive_DBJsonMapping", "insert into "+a.SQLArchivetablename+" (id,domain, path, serviceid, groupid, fqdnservicename, servicename) values ($1,$2, $3, $4, $5, $6, $7) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID, p.FQDNServiceName, p.ServiceName)
 	if e != nil {
 		return e
 	}
@@ -98,7 +100,7 @@ func (a *DBJsonMapping) Archive(ctx context.Context, id uint64) error {
 // Save (and use database default ID generation)
 func (a *DBJsonMapping) Save(ctx context.Context, p *savepb.JsonMapping) (uint64, error) {
 	qn := "DBJsonMapping_Save"
-	rows, e := a.DB.QueryContext(ctx, qn, "insert into "+a.SQLTablename+" (domain, path, serviceid, groupid) values ($1, $2, $3, $4) returning id", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p))
+	rows, e := a.DB.QueryContext(ctx, qn, "insert into "+a.SQLTablename+" (domain, path, serviceid, groupid, fqdnservicename, servicename) values ($1, $2, $3, $4, $5, $6) returning id", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p), a.get_FQDNServiceName(p), a.get_ServiceName(p))
 	if e != nil {
 		return 0, a.Error(ctx, qn, e)
 	}
@@ -118,13 +120,13 @@ func (a *DBJsonMapping) Save(ctx context.Context, p *savepb.JsonMapping) (uint64
 // Save using the ID specified
 func (a *DBJsonMapping) SaveWithID(ctx context.Context, p *savepb.JsonMapping) error {
 	qn := "insert_DBJsonMapping"
-	_, e := a.DB.ExecContext(ctx, qn, "insert into "+a.SQLTablename+" (id,domain, path, serviceid, groupid) values ($1,$2, $3, $4, $5) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID)
+	_, e := a.DB.ExecContext(ctx, qn, "insert into "+a.SQLTablename+" (id,domain, path, serviceid, groupid, fqdnservicename, servicename) values ($1,$2, $3, $4, $5, $6, $7) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID, p.FQDNServiceName, p.ServiceName)
 	return a.Error(ctx, qn, e)
 }
 
 func (a *DBJsonMapping) Update(ctx context.Context, p *savepb.JsonMapping) error {
 	qn := "DBJsonMapping_Update"
-	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set domain=$1, path=$2, serviceid=$3, groupid=$4 where id = $5", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p), p.ID)
+	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set domain=$1, path=$2, serviceid=$3, groupid=$4, fqdnservicename=$5, servicename=$6 where id = $7", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p), a.get_FQDNServiceName(p), a.get_ServiceName(p), p.ID)
 
 	return a.Error(ctx, qn, e)
 }
@@ -139,7 +141,7 @@ func (a *DBJsonMapping) DeleteByID(ctx context.Context, p uint64) error {
 // get it by primary id
 func (a *DBJsonMapping) ByID(ctx context.Context, p uint64) (*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where id = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where id = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByID: error querying (%s)", e))
 	}
@@ -160,7 +162,7 @@ func (a *DBJsonMapping) ByID(ctx context.Context, p uint64) (*savepb.JsonMapping
 // get it by primary id (nil if no such ID row, but no error either)
 func (a *DBJsonMapping) TryByID(ctx context.Context, p uint64) (*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_TryByID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where id = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where id = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("TryByID: error querying (%s)", e))
 	}
@@ -181,7 +183,7 @@ func (a *DBJsonMapping) TryByID(ctx context.Context, p uint64) (*savepb.JsonMapp
 // get all rows
 func (a *DBJsonMapping) All(ctx context.Context) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_all"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" order by id")
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" order by id")
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("All: error querying (%s)", e))
 	}
@@ -200,7 +202,7 @@ func (a *DBJsonMapping) All(ctx context.Context) ([]*savepb.JsonMapping, error) 
 // get all "DBJsonMapping" rows with matching Domain
 func (a *DBJsonMapping) ByDomain(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByDomain"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where domain = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where domain = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByDomain: error querying (%s)", e))
 	}
@@ -215,7 +217,7 @@ func (a *DBJsonMapping) ByDomain(ctx context.Context, p string) ([]*savepb.JsonM
 // the 'like' lookup
 func (a *DBJsonMapping) ByLikeDomain(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByLikeDomain"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where domain ilike $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where domain ilike $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByDomain: error querying (%s)", e))
 	}
@@ -230,7 +232,7 @@ func (a *DBJsonMapping) ByLikeDomain(ctx context.Context, p string) ([]*savepb.J
 // get all "DBJsonMapping" rows with matching Path
 func (a *DBJsonMapping) ByPath(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByPath"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where path = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where path = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByPath: error querying (%s)", e))
 	}
@@ -245,7 +247,7 @@ func (a *DBJsonMapping) ByPath(ctx context.Context, p string) ([]*savepb.JsonMap
 // the 'like' lookup
 func (a *DBJsonMapping) ByLikePath(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByLikePath"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where path ilike $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where path ilike $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByPath: error querying (%s)", e))
 	}
@@ -260,7 +262,7 @@ func (a *DBJsonMapping) ByLikePath(ctx context.Context, p string) ([]*savepb.Jso
 // get all "DBJsonMapping" rows with matching ServiceID
 func (a *DBJsonMapping) ByServiceID(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByServiceID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where serviceid = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where serviceid = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceID: error querying (%s)", e))
 	}
@@ -275,7 +277,7 @@ func (a *DBJsonMapping) ByServiceID(ctx context.Context, p string) ([]*savepb.Js
 // the 'like' lookup
 func (a *DBJsonMapping) ByLikeServiceID(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByLikeServiceID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where serviceid ilike $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where serviceid ilike $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceID: error querying (%s)", e))
 	}
@@ -290,7 +292,7 @@ func (a *DBJsonMapping) ByLikeServiceID(ctx context.Context, p string) ([]*savep
 // get all "DBJsonMapping" rows with matching GroupID
 func (a *DBJsonMapping) ByGroupID(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByGroupID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where groupid = $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where groupid = $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByGroupID: error querying (%s)", e))
 	}
@@ -305,7 +307,7 @@ func (a *DBJsonMapping) ByGroupID(ctx context.Context, p string) ([]*savepb.Json
 // the 'like' lookup
 func (a *DBJsonMapping) ByLikeGroupID(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
 	qn := "DBJsonMapping_ByLikeGroupID"
-	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid from "+a.SQLTablename+" where groupid ilike $1", p)
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where groupid ilike $1", p)
 	if e != nil {
 		return nil, a.Error(ctx, qn, fmt.Errorf("ByGroupID: error querying (%s)", e))
 	}
@@ -317,28 +319,103 @@ func (a *DBJsonMapping) ByLikeGroupID(ctx context.Context, p string) ([]*savepb.
 	return l, nil
 }
 
+// get all "DBJsonMapping" rows with matching FQDNServiceName
+func (a *DBJsonMapping) ByFQDNServiceName(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_ByFQDNServiceName"
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where fqdnservicename = $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error querying (%s)", e))
+	}
+	defer rows.Close()
+	l, e := a.FromRows(ctx, rows)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// the 'like' lookup
+func (a *DBJsonMapping) ByLikeFQDNServiceName(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_ByLikeFQDNServiceName"
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where fqdnservicename ilike $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error querying (%s)", e))
+	}
+	defer rows.Close()
+	l, e := a.FromRows(ctx, rows)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByFQDNServiceName: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// get all "DBJsonMapping" rows with matching ServiceName
+func (a *DBJsonMapping) ByServiceName(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_ByServiceName"
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where servicename = $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceName: error querying (%s)", e))
+	}
+	defer rows.Close()
+	l, e := a.FromRows(ctx, rows)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceName: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// the 'like' lookup
+func (a *DBJsonMapping) ByLikeServiceName(ctx context.Context, p string) ([]*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_ByLikeServiceName"
+	rows, e := a.DB.QueryContext(ctx, qn, "select id,domain, path, serviceid, groupid, fqdnservicename, servicename from "+a.SQLTablename+" where servicename ilike $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceName: error querying (%s)", e))
+	}
+	defer rows.Close()
+	l, e := a.FromRows(ctx, rows)
+	if e != nil {
+		return nil, a.Error(ctx, qn, fmt.Errorf("ByServiceName: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
 /**********************************************************************
 * The field getters
 **********************************************************************/
 
+// getter for field "ID" (ID) [uint64]
 func (a *DBJsonMapping) get_ID(p *savepb.JsonMapping) uint64 {
-	return p.ID
+	return uint64(p.ID)
 }
 
+// getter for field "Domain" (Domain) [string]
 func (a *DBJsonMapping) get_Domain(p *savepb.JsonMapping) string {
-	return p.Domain
+	return string(p.Domain)
 }
 
+// getter for field "Path" (Path) [string]
 func (a *DBJsonMapping) get_Path(p *savepb.JsonMapping) string {
-	return p.Path
+	return string(p.Path)
 }
 
+// getter for field "ServiceID" (ServiceID) [string]
 func (a *DBJsonMapping) get_ServiceID(p *savepb.JsonMapping) string {
-	return p.ServiceID
+	return string(p.ServiceID)
 }
 
+// getter for field "GroupID" (GroupID) [string]
 func (a *DBJsonMapping) get_GroupID(p *savepb.JsonMapping) string {
-	return p.GroupID
+	return string(p.GroupID)
+}
+
+// getter for field "FQDNServiceName" (FQDNServiceName) [string]
+func (a *DBJsonMapping) get_FQDNServiceName(p *savepb.JsonMapping) string {
+	return string(p.FQDNServiceName)
+}
+
+// getter for field "ServiceName" (ServiceName) [string]
+func (a *DBJsonMapping) get_ServiceName(p *savepb.JsonMapping) string {
+	return string(p.ServiceName)
 }
 
 /**********************************************************************
@@ -362,17 +439,17 @@ func (a *DBJsonMapping) Tablename() string {
 }
 
 func (a *DBJsonMapping) SelectCols() string {
-	return "id,domain, path, serviceid, groupid"
+	return "id,domain, path, serviceid, groupid, fqdnservicename, servicename"
 }
 func (a *DBJsonMapping) SelectColsQualified() string {
-	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".domain, " + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".groupid"
+	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".domain, " + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".groupid, " + a.SQLTablename + ".fqdnservicename, " + a.SQLTablename + ".servicename"
 }
 
 func (a *DBJsonMapping) FromRowsOld(ctx context.Context, rows *gosql.Rows) ([]*savepb.JsonMapping, error) {
 	var res []*savepb.JsonMapping
 	for rows.Next() {
 		foo := savepb.JsonMapping{}
-		err := rows.Scan(&foo.ID, &foo.Domain, &foo.Path, &foo.ServiceID, &foo.GroupID)
+		err := rows.Scan(&foo.ID, &foo.Domain, &foo.Path, &foo.ServiceID, &foo.GroupID, &foo.FQDNServiceName, &foo.ServiceName)
 		if err != nil {
 			return nil, a.Error(ctx, "fromrow-scan", err)
 		}
@@ -392,7 +469,9 @@ func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*save
 		scanTarget_2 := &foo.Path
 		scanTarget_3 := &foo.ServiceID
 		scanTarget_4 := &foo.GroupID
-		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4)
+		scanTarget_5 := &foo.FQDNServiceName
+		scanTarget_6 := &foo.ServiceName
+		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4, scanTarget_5, scanTarget_6)
 		// END SCANNER
 
 		if err != nil {
@@ -409,17 +488,21 @@ func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*save
 func (a *DBJsonMapping) CreateTable(ctx context.Context) error {
 	csql := []string{
 		`create sequence if not exists ` + a.SQLTablename + `_seq;`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null );`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null ,fqdnservicename text not null ,servicename text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null ,fqdnservicename text not null ,servicename text not null );`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS domain text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS path text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS serviceid text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS groupid text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS servicename text not null default '';`,
 
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS domain text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS path text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS serviceid text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS groupid text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS fqdnservicename text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS servicename text not null  default '';`,
 	}
 
 	for i, c := range csql {
