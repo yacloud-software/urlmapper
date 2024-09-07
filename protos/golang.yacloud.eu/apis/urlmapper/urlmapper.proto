@@ -9,8 +9,10 @@ message JsonMapping {
   uint64 ID=1; // id of this mapping
   string Domain=2; // the domain to which this applies
   string Path=3; // the path under which can be found
-  string ServiceID=4; // the serviceid in protorenderer to which refers
+  string ServiceID=4; // DEPRECATED: the serviceid in protorenderer to which refers
   string GroupID=5; // the groupid this entry requires the user to be in (to match)
+  string FQDNServiceName=6; // the fqdn service name,e.g. "golang.conradwood.net/apis/registry/Registry"
+  string ServiceName=7;// the registration service name,e.g. "registry.Registry"
 }
 message GetJsonMappingRequest {
   string Domain=1; // the domain to which this applies
@@ -33,8 +35,9 @@ message ServiceID {
 message AnyHostMapping {
   uint64 ID=1;
   string Path=2 [(common.sql_unique)="true"];
-  string ServiceID=3; // the serviceid in protorenderer to which refers
+  string ServiceID=3; // DEPRECATED: the serviceid in protorenderer to which refers
   string ServiceName=4; // service name like it registers
+  string FQDNServiceName=5; // the fqdn service name
 }
 message AnyMappingRequest {
   string Path=1 ;
@@ -68,8 +71,10 @@ service URLMapper {
   rpc AddJsonMapping(JsonMapping) returns (common.Void);
   // get all domains "mapped" to jsonmultiplexer
   rpc GetJsonDomains(common.Void) returns (DomainList);
+
   // get mappings for a service
-  rpc GetServiceMappings(ServiceID) returns (JsonMappingResponseList);
+  //  rpc GetServiceMappings(ServiceID) returns (JsonMappingResponseList);
+  
   // add any host mapping
   rpc AddAnyHostMapping(AnyMappingRequest) returns (AnyMappingResponse);
   // get all mappings
