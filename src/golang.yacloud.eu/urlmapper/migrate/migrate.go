@@ -3,6 +3,7 @@ package migrate
 import (
 	"context"
 	"fmt"
+
 	"golang.conradwood.net/go-easyops/authremote"
 	"golang.yacloud.eu/apis/protomanager"
 	"golang.yacloud.eu/urlmapper/db"
@@ -35,7 +36,7 @@ func find_fqdn_for_jsonmappings() error {
 		ctx = authremote.Context()
 		fmt.Printf("Need servicemapping for %v\n", jmap)
 		serviceid := jmap.ServiceID
-		p, err := protomanager.GetProtoManagerClient().FindServiceByID(ctx, &protomanager.ID{ID: serviceid})
+		p, err := byid(ctx, &protomanager.ID{ID: serviceid})
 		if err != nil {
 			return err
 		}
@@ -68,7 +69,7 @@ func find_fqdn_for_anymappings() error {
 		ctx = authremote.Context()
 		fmt.Printf("Need fqdn for: %v\n", amap)
 		serviceid := amap.ServiceID
-		p, err := protomanager.GetProtoManagerClient().FindServiceByID(ctx, &protomanager.ID{ID: serviceid})
+		p, err := byid(ctx, &protomanager.ID{ID: serviceid})
 		if err != nil {
 			return err
 		}
@@ -87,4 +88,11 @@ func find_fqdn_for_anymappings() error {
 
 	}
 	return nil
+}
+
+func byid(ctx context.Context, req *protomanager.ID) (*protomanager.Service, error) {
+	panic("not implemented")
+	//	p, err := protomanager.GetProtoManagerClient().FindServiceByID(ctx, &protomanager.ID{ID: serviceid})
+	//	return p, err
+	//	return &protomanager.Service{ID: req.ID}, nil
 }

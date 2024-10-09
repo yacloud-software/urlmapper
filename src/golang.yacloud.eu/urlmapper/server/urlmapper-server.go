@@ -4,9 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
 	"golang.conradwood.net/apis/common"
 	ipm "golang.conradwood.net/apis/ipmanager"
+
 	//	pr "golang.conradwood.net/apis/protorenderer"
+	"os"
+	"sort"
+	"strings"
+
 	"golang.conradwood.net/go-easyops/auth"
 	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/server"
@@ -17,9 +23,6 @@ import (
 	"golang.yacloud.eu/urlmapper/db"
 	"golang.yacloud.eu/urlmapper/migrate"
 	"google.golang.org/grpc"
-	"os"
-	"sort"
-	"strings"
 )
 
 var (
@@ -247,7 +250,7 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 	if req.ServiceName == "" {
 		return nil, errors.InvalidArgs(ctx, "missing service name", "missing service name")
 	}
-	fsr := &protomanager.ServicesByNameRequest{Name: req.ServiceName}
+	fsr := &protomanager.ServicesByNameRequest{Name: req.ServiceName, ExactMatchOnly: true}
 	sv, err := protomanager.GetProtoManagerClient().FindServicesByName(ctx, fsr)
 	if err != nil {
 		return nil, err
