@@ -128,6 +128,8 @@ golang.yacloud.eu/apis/protomanager v1.1.3332 h1:SNf6icIO0roDTswku36+s6kpxlFXdXd
 golang.yacloud.eu/apis/protomanager v1.1.3332/go.mod h1:bcwneP9sLWw5wMZh2U9vVE5WVBTK3Y6dPdi+2S6fK44=
 golang.yacloud.eu/apis/protorenderer2 v1.1.3056 h1:TIofhiih7WT7O/PcatgDGBtuv6XRCfNEsqIskos8yMM=
 golang.yacloud.eu/apis/protorenderer2 v1.1.3056/go.mod h1:PzcKrDU7IZkJsZv5u4EMeiDvulYzcsP+lSxdYI2SQgo=
+golang.yacloud.eu/apis/protorenderer2 v1.1.3332 h1:HQnup3pCIclWWmAnxQEcu52kVCJ7iTv6KmZHi+m3aQA=
+golang.yacloud.eu/apis/protorenderer2 v1.1.3332/go.mod h1:IfoLj1Wa/SBvt7zxsvgljII6VU1uB90AR/ViZa5bJU8=
 golang.yacloud.eu/apis/session v1.1.3232 h1:t4aH/kvw7dEjrJu0ckPzgDzxXhoTGqb1WMJULdNG3Rc=
 golang.yacloud.eu/apis/session v1.1.3232/go.mod h1:NlUFEBO7dV1jaRIJLQN5aK0bqNPXjBZR7hU84crI/W0=
 golang.yacloud.eu/apis/session v1.1.3323 h1:ui2hvIC+Gd508JxgH69mgcZ/QemgWMY9/6AHwHul6Hs=

@@ -45,7 +45,7 @@ require (
 	golang.yacloud.eu/apis/autodeployer2 v1.1.3229 // indirect
 	golang.yacloud.eu/apis/faultindicator v1.1.3323 // indirect
 	golang.yacloud.eu/apis/fscache v1.1.3323 // indirect
-	golang.yacloud.eu/apis/protorenderer2 v1.1.3056 // indirect
+	golang.yacloud.eu/apis/protorenderer2 v1.1.3332 // indirect
 	golang.yacloud.eu/apis/session v1.1.3323 // indirect
 	golang.yacloud.eu/apis/unixipc v1.1.3323 // indirect
 	golang.yacloud.eu/apis/urlcacher v1.1.3229 // indirect
