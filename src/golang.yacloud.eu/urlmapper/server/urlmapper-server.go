@@ -256,7 +256,7 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 		return nil, err
 	}
 	if len(sv.Services) == 0 {
-		fmt.Printf("protorenderer knows no no such service: \"%s\"\n", fsr.Name)
+		fmt.Printf("protomanager knows no no such service: \"%s\"\n", fsr.Name)
 		return nil, errors.NotFound(ctx, "no such service (%s)", fsr.Name)
 	}
 	if len(sv.Services) > 1 {
