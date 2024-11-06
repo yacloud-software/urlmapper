@@ -65,7 +65,7 @@ service URLMapper {
   rpc GetJsonMappingWithUser(GetJsonMappingRequest) returns (JsonMappingResponse);
   // get json mapping for URL
   rpc GetJsonMapping(GetJsonMappingRequest) returns (JsonMappingResponse);
-  // get all json mappings
+  // get all specific host json mappings (excluding anyhost mappings)
   rpc GetJsonMappings(common.Void) returns (JsonMappingResponseList);
   // add a json mapping
   rpc AddJsonMapping(JsonMapping) returns (common.Void);
@@ -77,6 +77,6 @@ service URLMapper {
   
   // add any host mapping
   rpc AddAnyHostMapping(AnyMappingRequest) returns (AnyMappingResponse);
-  // get all mappings
+  // get all mappings, including anyhost and specific host mappings
   rpc GetAllMappings(common.Void)returns(AllMappingList);
 }
