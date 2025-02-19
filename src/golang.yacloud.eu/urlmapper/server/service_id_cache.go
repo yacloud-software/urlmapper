@@ -6,8 +6,9 @@ import (
 	//	"golang.conradwood.net/apis/protorenderer"
 	"golang.conradwood.net/go-easyops/cache"
 	//	"golang.conradwood.net/go-easyops/errors"
-	"golang.yacloud.eu/apis/protomanager"
 	"time"
+
+	"golang.yacloud.eu/apis/protomanager"
 )
 
 const (
