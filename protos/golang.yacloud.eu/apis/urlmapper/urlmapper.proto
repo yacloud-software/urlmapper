@@ -57,6 +57,18 @@ message AllMapping {
 message AllMappingList {
   repeated AllMapping AllMappings=1;
 }
+message RPCMappingRequest {
+  bool Expose=1;
+  string ServiceName=2; // e.g.  "artefact.ArtefactService" 
+  string RPCName=3; // e.g. "List"
+}
+
+message RPCMapping {
+  uint64 ID=1;
+  string ServiceName=2; // e.g.  "artefact.ArtefactService" 
+  string RPCName=3; // e.g. "List"
+}
+
 /*
 This service maps urls to backends and gRPC servers to json urls
  */
@@ -79,4 +91,6 @@ service URLMapper {
   rpc AddAnyHostMapping(AnyMappingRequest) returns (AnyMappingResponse);
   // get all mappings, including anyhost and specific host mappings
   rpc GetAllMappings(common.Void)returns(AllMappingList);
+  // Expose (or unexpose) a single RPC on any URL
+  rpc SetRPCMapping(RPCMappingRequest) returns (common.Void);
 }
