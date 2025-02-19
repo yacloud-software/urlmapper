@@ -26,9 +26,10 @@ import (
 )
 
 var (
-	jsonMapStore *db.DBJsonMapping
-	debug        = flag.Bool("debug", false, "debug mode")
-	port         = flag.Int("port", 4100, "The grpc server port")
+	panic_on_deprecated = flag.Bool("panic_on_deprecated", true, "panic on deprecated rpc calls")
+	jsonMapStore        *db.DBJsonMapping
+	debug               = flag.Bool("debug", false, "debug mode")
+	port                = flag.Int("port", 4100, "The grpc server port")
 )
 
 type echoServer struct {
@@ -61,6 +62,10 @@ func main() {
 * grpc functions
 ************************************/
 func (e *echoServer) AddJsonMapping(ctx context.Context, req *pb.JsonMapping) (*common.Void, error) {
+	// *************** DEPRECATED ******************
+	if *panic_on_deprecated {
+		panic("deprecated code path")
+	}
 	req.Path = strings.Trim(req.Path, "/")
 	req.Path = strings.ToLower(req.Path)
 	req.Domain = strings.ToLower(req.Domain)
@@ -89,7 +94,10 @@ func (e *echoServer) AddJsonMapping(ctx context.Context, req *pb.JsonMapping) (*
 	return &common.Void{}, nil
 }
 func (e *echoServer) GetJsonMappings(ctx context.Context, req *common.Void) (*pb.JsonMappingResponseList, error) {
-
+	// *************** DEPRECATED ******************
+	if *panic_on_deprecated {
+		panic("deprecated code path")
+	}
 	jms, err := jsonMapStore.All(ctx)
 	if err != nil {
 		return nil, err
@@ -108,6 +116,10 @@ func (e *echoServer) GetJsonMappings(ctx context.Context, req *common.Void) (*pb
 	return res, nil
 }
 func (e *echoServer) GetJsonMappingWithUser(ctx context.Context, req *pb.GetJsonMappingRequest) (*pb.JsonMappingResponse, error) {
+	// *************** DEPRECATED ******************
+	if *panic_on_deprecated {
+		panic("deprecated code path")
+	}
 	rs, err := e.GetJsonMapping(ctx, req)
 	if err != nil {
 		return nil, err
@@ -117,14 +129,28 @@ func (e *echoServer) GetJsonMappingWithUser(ctx context.Context, req *pb.GetJson
 	}
 
 	return rs, nil
-
 }
 func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingRequest) (*pb.JsonMappingResponse, error) {
-
+	fmt.Printf("Old codepath, looking up mapping for path \"%s\"\n", req.Path)
 	path := strings.Trim(req.Path, "/")
 
 	if strings.HasPrefix(path, "_api/") {
 		p := strings.TrimPrefix(path, "_api/")
+		// try rpc mapping
+		rhms, err := db.DefaultDBRPCMapping().ByFQDNService(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		if len(rhms) > 0 {
+			ah := rhms[0]
+			jm := &pb.JsonMapping{ID: 0, Domain: "*", Path: "/_api/" + ah.FQDNService, GroupID: "", RPC: ah.RPCName}
+			res := &pb.JsonMappingResponse{
+				Mapping:     jm,
+				GRPCService: ah.ServiceName,
+			}
+			return res, nil
+		}
+		// try service mapping
 		ahms, err := db.DefaultDBAnyHostMapping().ByPath(ctx, p)
 		if err != nil {
 			return nil, err
@@ -182,6 +208,10 @@ func (e *echoServer) GetJsonMapping(ctx context.Context, req *pb.GetJsonMappingR
 
 }
 func (e *echoServer) GetJsonDomains(ctx context.Context, req *common.Void) (*pb.DomainList, error) {
+	// *************** DEPRECATED ******************
+	if *panic_on_deprecated {
+		panic("deprecated code path")
+	}
 	m := make(map[string]int)
 	jms, err := jsonMapStore.All(ctx)
 	if err != nil {
@@ -296,6 +326,7 @@ func (e *echoServer) GetAllMappings(ctx context.Context, req *common.Void) (*pb.
 			ServiceName: jm.ServiceName,
 			Domain:      jm.Domain,
 			Path:        jm.Path,
+			RPC:         "*",
 		}
 		res.AllMappings = append(res.AllMappings, a)
 	}
@@ -310,6 +341,23 @@ func (e *echoServer) GetAllMappings(ctx context.Context, req *common.Void) (*pb.
 			ServiceName: am.ServiceName,
 			Domain:      "*",
 			Path:        am.Path,
+			RPC:         "*",
+		}
+		res.AllMappings = append(res.AllMappings, a)
+	}
+
+	// *** do rpc mappings ***//
+	rms, err := db.DefaultDBRPCMapping().All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, rm := range rms {
+		a := &pb.AllMapping{
+			//	ServiceID:   am.ServiceID,
+			ServiceName: rm.ServiceName,
+			Domain:      "*",
+			Path:        rm.FQDNService,
+			RPC:         rm.RPCName,
 		}
 		res.AllMappings = append(res.AllMappings, a)
 	}

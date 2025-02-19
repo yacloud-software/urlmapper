@@ -3,28 +3,40 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
+	"os"
+
 	"golang.conradwood.net/apis/common"
 	pr "golang.conradwood.net/apis/protorenderer"
 	"golang.conradwood.net/go-easyops/authremote"
 	"golang.conradwood.net/go-easyops/utils"
+	"golang.yacloud.eu/apis/urlmapper"
 	pb "golang.yacloud.eu/apis/urlmapper"
-	"net/url"
-	"os"
 )
 
 var (
 	addflag           = flag.String("add", "", "`servicename` - add this service as [anyhost]/_api/[domain]/[path]")
 	add_specific_flag = flag.Bool("add_specific", false, "add a specific mapping (with host)")
-	findflag          = flag.Bool("find", false, "find a mapping")
+	findflag          = flag.String("find", "", "find a mapping by path, e.g /_api/foo/bar")
 	mapurl            = flag.String("url", "", "url to serve a mapping on")
 	grpcservice       = flag.String("service", "", "`grpc service` name, e.g. \"urlmapper.URLMapper\"")
-	echoClient        pb.URLMapperClient
+	all               = flag.Bool("all", false, "list all")
+
+	echoClient pb.URLMapperClient
 )
 
 func main() {
 	flag.Parse()
 
 	echoClient = pb.GetURLMapperClient()
+	if *findflag != "" {
+		utils.Bail("failed to find", Find())
+		os.Exit(0)
+	}
+	if *all {
+		utils.Bail("failed to list all", All())
+		os.Exit(0)
+	}
 	if *addflag != "" {
 		Add()
 		os.Exit(0)
@@ -105,4 +117,41 @@ func getJsonMap() *pb.JsonMapping {
 		ServiceID: sv.Services[0].Service.ID,
 	}
 	return res
+}
+
+func All() error {
+	ctx := authremote.Context()
+	um, err := urlmapper.GetURLMapperClient().GetAllMappings(ctx, &common.Void{})
+	if err != nil {
+		return err
+	}
+	t := utils.Table{}
+	t.AddHeaders("ServiceName", "Path", "Domain", "RPC")
+	for _, m := range um.AllMappings {
+		t.AddString(m.ServiceName)
+		t.AddString(m.Path)
+		t.AddString(m.Domain)
+		t.AddString(m.RPC)
+		t.NewRow()
+	}
+	fmt.Println(t.ToPrettyString())
+	return nil
+}
+
+func Find() error {
+	ctx := authremote.Context()
+	mr := &urlmapper.MappingRequest{Path: *findflag}
+	mapping, err := urlmapper.GetURLMapperClient().GetMapping(ctx, mr)
+	if err != nil {
+		return err
+	}
+	if !mapping.MappingFound {
+		fmt.Printf("No mapping found for \"%s\"\n", mr.Path)
+		return nil
+	}
+	fmt.Printf("Mapping for \"%s\":\n", mr.Path)
+	fmt.Printf("  RegistryName    : %s\n", mapping.RegistryName)
+	fmt.Printf("  FQDNService     : %s\n", mapping.FQDNServiceName)
+	fmt.Printf("  RPC             : %s\n", mapping.RPCName)
+	return nil
 }
