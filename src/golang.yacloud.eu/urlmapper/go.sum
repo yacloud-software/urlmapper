@@ -64,8 +64,8 @@ golang.conradwood.net/apis/autodeployer v1.1.3625 h1:oPHb9M0LH4ME4s6ZIXjBSiaGi/z
 golang.conradwood.net/apis/autodeployer v1.1.3625/go.mod h1:sYXp7XgkNGQ7o0h8QjGinLUGpbKujEGKDeOqVJZ9Lgc=
 golang.conradwood.net/apis/certmanager v1.1.3625 h1:5p0Wbxd2SqeLf9Oujsd3o/AGLQRFsC4n6YVtLv4vV1w=
 golang.conradwood.net/apis/certmanager v1.1.3625/go.mod h1:quOBscA5hQoqIA9NGzZDd7mOIbx6ybsFLLyKxNcpiJg=
-golang.conradwood.net/apis/common v1.1.3659 h1:XLcVHAEwNbWi8AyH1ezJNi4ketB0bQGg5Rv4r2P971g=
-golang.conradwood.net/apis/common v1.1.3659/go.mod h1:7oOqIn2DY+JjjeO6m6k2ezfwRiWkYdxaBXnoSouX5nw=
+golang.conradwood.net/apis/common v1.1.3661 h1:9l+MY27B+0fkSb1Ah+cTgNYnn4ofkrej3hAxXzImKKs=
+golang.conradwood.net/apis/common v1.1.3661/go.mod h1:h+OBndZdUfdh59hpvUiXbJ0Oq+0qFZTtBIo1ndCceUs=
 golang.conradwood.net/apis/deploymonkey v1.1.3625 h1:qiSPGmvcx+poZG1z0+Ik6KN9aFJBrtAjFHgoB/9fbRY=
 golang.conradwood.net/apis/deploymonkey v1.1.3625/go.mod h1:fydetvTrJw+Gta7qPSVjweiFHCgQlcvvNBKzycQzwAc=
 golang.conradwood.net/apis/errorlogger v1.1.3625 h1:fUo8bqEzcPSVhV07kf46HlW4jKHJ6m8IgltWrlaJpww=

@@ -42,6 +42,7 @@ func main() {
 	utils.Bail("failed to open sql", err)
 	jsonMapStore = db.NewDBJsonMapping(psql)
 	db.DefaultDBAnyHostMapping()
+	db.DefaultDBRPCMapping()
 	sd := server.NewServerDef()
 	sd.SetPort(*port)
 	sd.SetRegister(server.Register(

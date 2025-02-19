@@ -3,7 +3,7 @@ module golang.yacloud.eu/urlmapper
 go 1.22.2
 
 require (
-	golang.conradwood.net/apis/common v1.1.3659
+	golang.conradwood.net/apis/common v1.1.3661
 	golang.conradwood.net/apis/ipmanager v1.1.3412
 	golang.conradwood.net/apis/protorenderer v1.1.3412
 	golang.conradwood.net/go-easyops v0.1.34215
