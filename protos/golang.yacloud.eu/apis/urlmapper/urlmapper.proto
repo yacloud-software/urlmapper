@@ -66,8 +66,9 @@ message RPCMappingRequest {
 
 message RPCMapping {
   uint64 ID=1;
-  string ServiceName=2; // e.g.  "artefact.ArtefactService" 
-  string RPCName=3; // e.g. "List"
+  string ServiceName=2; // e.g.  "artefact.ArtefactService"
+  string FQDNService=3; // e.g.  "golang.conradwood.net/apis/artefact/ArtefactService"
+  string RPCName=4; // e.g. "List"
 }
 
 /*
