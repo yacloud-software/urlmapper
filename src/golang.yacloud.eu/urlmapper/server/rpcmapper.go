@@ -16,7 +16,8 @@ func (e *echoServer) SetRPCMapping(ctx context.Context, req *pb.RPCMappingReques
 	if !auth.IsInGroup(ctx, "8") {
 		return nil, errors.AccessDenied(ctx, "Access denied")
 	}
-	fmt.Printf("Expose service=%s, rpc=%s: %v\n", req.FQDNServiceName, req.RPCName, req.Expose)
+	prefix := fmt.Sprintf("[service=%s, rpc=%s] ", req.FQDNServiceName, req.RPCName)
+	fmt.Printf("%sExpose: %v\n", prefix, req.Expose)
 	q := db.DefaultDBRPCMapping().NewQuery()
 	q.AddEqual("fqdnservice", req.FQDNServiceName)
 	q.AddEqual("rpcname", req.RPCName)
@@ -29,12 +30,14 @@ func (e *echoServer) SetRPCMapping(ctx context.Context, req *pb.RPCMappingReques
 		id = rpcs[0].ID
 	}
 	if req.Expose && (id != 0) {
+		fmt.Printf("%sNothing to do\n", prefix)
 		// nothing to do
 		return &common.Void{}, nil
 	}
 	fsvc := &protomanager.FindServiceFQDNRequest{FQDN: req.FQDNServiceName}
 	svc, err := protomanager.GetProtoManagerClient().FindServiceByFQDN(ctx, fsvc)
 	if err != nil {
+		fmt.Printf("%sFailed to find service for %s: %s\n", prefix, fsvc.FQDN, errors.ErrorString(err))
 		return nil, err
 	}
 	if svc.RegistryName == "" {
@@ -50,11 +53,13 @@ func (e *echoServer) SetRPCMapping(ctx context.Context, req *pb.RPCMappingReques
 		if err != nil {
 			return nil, err
 		}
+		fmt.Printf("%sSaved\n", prefix)
 	} else {
 		err = db.DefaultDBRPCMapping().DeleteByID(ctx, id)
 		if err != nil {
 			return nil, err
 		}
+		fmt.Printf("%sDeleted\n", prefix)
 	}
 	return &common.Void{}, nil
 }
