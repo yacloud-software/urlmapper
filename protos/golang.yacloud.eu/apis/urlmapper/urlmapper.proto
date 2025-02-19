@@ -52,6 +52,7 @@ message AllMapping {
   string ServiceName=2;
   string Domain=3; // '*' for anyhostmapping
   string Path=4;
+  string RPC=5; // '*' for any rpc in this service
 }
 
 message AllMappingList {
@@ -77,11 +78,11 @@ service URLMapper {
   rpc GetJsonMappingWithUser(GetJsonMappingRequest) returns (JsonMappingResponse);
   // get json mapping for URL
   rpc GetJsonMapping(GetJsonMappingRequest) returns (JsonMappingResponse);
-  // get all specific host json mappings (excluding anyhost mappings)
+  // DEPRECATED - get all specific host json mappings (excluding anyhost mappings)
   rpc GetJsonMappings(common.Void) returns (JsonMappingResponseList);
   // add a json mapping
   rpc AddJsonMapping(JsonMapping) returns (common.Void);
-  // get all domains "mapped" to jsonmultiplexer
+  // DEPRECATED - get all domains "mapped" to jsonmultiplexer
   rpc GetJsonDomains(common.Void) returns (DomainList);
 
   // get mappings for a service
@@ -89,7 +90,7 @@ service URLMapper {
   
   // add any host mapping
   rpc AddAnyHostMapping(AnyMappingRequest) returns (AnyMappingResponse);
-  // get all mappings, including anyhost and specific host mappings
+  // get all mappings, including anyhost and specific host mappings (useful for rendering list)
   rpc GetAllMappings(common.Void)returns(AllMappingList);
   // Expose (or unexpose) a single RPC on any URL
   rpc SetRPCMapping(RPCMappingRequest) returns (common.Void);
