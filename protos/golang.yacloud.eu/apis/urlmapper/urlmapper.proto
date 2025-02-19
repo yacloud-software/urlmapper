@@ -13,6 +13,7 @@ message JsonMapping {
   string GroupID=5; // the groupid this entry requires the user to be in (to match)
   string FQDNServiceName=6; // the fqdn service name,e.g. "golang.conradwood.net/apis/registry/Registry"
   string ServiceName=7;// the registration service name,e.g. "registry.Registry"
+  string RPC=8; // if "", applies to all RPCs
 }
 message GetJsonMappingRequest {
   string Domain=1; // the domain to which this applies
@@ -70,18 +71,27 @@ message RPCMapping {
   string FQDNService=3; // e.g.  "golang.conradwood.net/apis/artefact/ArtefactService"
   string RPCName=4; // e.g. "List"
 }
+message MappingRequest {
+  string Path=1;
+}
+message Mapping {
+  bool MappingFound=1; // true if a mapping is found for this path
+  string RegistryName=2; // the name to use to lookup target rpc service in registry
+  string FQDNServiceName=3;
+  string RPCName=4; // the RPCName to call in the target service
+}
 
 /*
 This service maps urls to backends and gRPC servers to json urls
  */
 service URLMapper {
-  // get json mapping for URL and user
+  // DEPRECATED - get json mapping for URL and user
   rpc GetJsonMappingWithUser(GetJsonMappingRequest) returns (JsonMappingResponse);
-  // get json mapping for URL
+  // DEPRECATED - get json mapping for URL
   rpc GetJsonMapping(GetJsonMappingRequest) returns (JsonMappingResponse);
   // DEPRECATED - get all specific host json mappings (excluding anyhost mappings)
   rpc GetJsonMappings(common.Void) returns (JsonMappingResponseList);
-  // add a json mapping
+  // DEPRECATED - add a json mapping
   rpc AddJsonMapping(JsonMapping) returns (common.Void);
   // DEPRECATED - get all domains "mapped" to jsonmultiplexer
   rpc GetJsonDomains(common.Void) returns (DomainList);
@@ -95,4 +105,7 @@ service URLMapper {
   rpc GetAllMappings(common.Void)returns(AllMappingList);
   // Expose (or unexpose) a single RPC on any URL
   rpc SetRPCMapping(RPCMappingRequest) returns (common.Void);
+  // get the mapping for a full path, e.g. "/_api/golang.yacloud.eu/apis/vuehelper/Log"
+  // a URL is also accepted, e.g.  "https://www.singingcat.net/_api/golang.yacloud.eu/apis/vuehelper/Log"
+  rpc GetMapping(MappingRequest) returns (Mapping);
 }
