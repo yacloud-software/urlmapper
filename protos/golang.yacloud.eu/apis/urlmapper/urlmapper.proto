@@ -61,8 +61,8 @@ message AllMappingList {
 }
 message RPCMappingRequest {
   bool Expose=1;
-  string ServiceName=2; // e.g.  "artefact.ArtefactService" 
-  string RPCName=3; // e.g. "List"
+  string FQDNServiceName=2; // e.g.  "golang.yacloud.eu/apis/urlmapper/URLMapper"
+  string RPCName=3; // e.g. "SetRPCMapping"
 }
 
 message RPCMapping {
