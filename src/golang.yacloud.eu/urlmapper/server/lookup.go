@@ -27,9 +27,14 @@ func (e *echoServer) GetMapping(ctx context.Context, req *pb.MappingRequest) (*p
 	 3. very old style
 	*/
 	if strings.HasPrefix(path, "_api/") {
-		m, err := get_mapping_rpc(ctx, path)
+		m, err := get_mapping_rpc_by_path(ctx, path)
 		if m != nil {
-			return m, nil
+			return &pb.Mapping{
+				MappingFound:    true,
+				RegistryName:    m.ServiceName,
+				FQDNServiceName: m.FQDNService,
+				RPCName:         m.RPCName,
+			}, nil
 		}
 		if err != nil {
 			return nil, err
@@ -49,7 +54,7 @@ func (e *echoServer) GetMapping(ctx context.Context, req *pb.MappingRequest) (*p
 }
 
 // get an rpc mapping. path must be _api/fqdnservice/rpcname, e.g. "_api/golang.yacloud.eu/apis/vuehelper/Log"
-func get_mapping_rpc(ctx context.Context, path string) (*pb.Mapping, error) {
+func get_mapping_rpc_by_path(ctx context.Context, path string) (*pb.RPCMapping, error) {
 	p := strings.TrimPrefix(path, "_api/")
 	service := filepath.Dir(p)
 	rpc := filepath.Base(p)
@@ -65,13 +70,7 @@ func get_mapping_rpc(ctx context.Context, path string) (*pb.Mapping, error) {
 		return nil, nil
 	}
 	r := rpcs[0]
-	return &pb.Mapping{
-		MappingFound:    true,
-		RegistryName:    r.ServiceName,
-		FQDNServiceName: r.FQDNService,
-		RPCName:         r.RPCName,
-	}, nil
-
+	return r, nil
 }
 
 // get a service mapping. path must be _api/fqdnservice, e.g. "_api/golang.yacloud.eu/apis/vuehelper"
