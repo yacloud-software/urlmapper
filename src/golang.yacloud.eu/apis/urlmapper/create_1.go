@@ -4,7 +4,8 @@
 */
 
 /* geninfo:
-   filename  : protos/golang.yacloud.eu/apis/urlmapper/urlmapper.proto
+   rendererv : 2
+   filename  : golang.yacloud.eu/apis/urlmapper/urlmapper.proto
    gopackage : golang.yacloud.eu/apis/urlmapper
    importname: ai_0
    clientfunc: GetURLMapper
