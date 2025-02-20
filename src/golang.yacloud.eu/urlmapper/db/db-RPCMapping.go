@@ -16,17 +16,18 @@ package db
 
 Main Table:
 
- CREATE TABLE rpcmapping (id integer primary key default nextval('rpcmapping_seq'),servicename text not null  ,fqdnservice text not null  ,rpcname text not null  );
+ CREATE TABLE rpcmapping (id integer primary key default nextval('rpcmapping_seq'),servicename text not null  ,fqdnservice text not null  ,rpcname text not null  ,active boolean not null  );
 
 Alter statements:
 ALTER TABLE rpcmapping ADD COLUMN IF NOT EXISTS servicename text not null default '';
 ALTER TABLE rpcmapping ADD COLUMN IF NOT EXISTS fqdnservice text not null default '';
 ALTER TABLE rpcmapping ADD COLUMN IF NOT EXISTS rpcname text not null default '';
+ALTER TABLE rpcmapping ADD COLUMN IF NOT EXISTS active boolean not null default false;
 
 
 Archive Table: (structs can be moved from main to archive using Archive() function)
 
- CREATE TABLE rpcmapping_archive (id integer unique not null,servicename text not null,fqdnservice text not null,rpcname text not null);
+ CREATE TABLE rpcmapping_archive (id integer unique not null,servicename text not null,fqdnservice text not null,rpcname text not null,active boolean not null);
 */
 
 import (
@@ -101,7 +102,7 @@ func (a *DBRPCMapping) Archive(ctx context.Context, id uint64) error {
 	}
 
 	// now save it to archive:
-	_, e := a.DB.ExecContext(ctx, "archive_DBRPCMapping", "insert into "+a.SQLArchivetablename+" (id,servicename, fqdnservice, rpcname) values ($1,$2, $3, $4) ", p.ID, p.ServiceName, p.FQDNService, p.RPCName)
+	_, e := a.DB.ExecContext(ctx, "archive_DBRPCMapping", "insert into "+a.SQLArchivetablename+" (id,servicename, fqdnservice, rpcname, active) values ($1,$2, $3, $4, $5) ", p.ID, p.ServiceName, p.FQDNService, p.RPCName, p.Active)
 	if e != nil {
 		return e
 	}
@@ -122,6 +123,7 @@ func (a *DBRPCMapping) buildSaveMap(ctx context.Context, p *savepb.RPCMapping) (
 	res["servicename"] = a.get_col_from_proto(p, "servicename")
 	res["fqdnservice"] = a.get_col_from_proto(p, "fqdnservice")
 	res["rpcname"] = a.get_col_from_proto(p, "rpcname")
+	res["active"] = a.get_col_from_proto(p, "active")
 	if extra != nil {
 		for k, v := range extra {
 			res[k] = v
@@ -190,7 +192,7 @@ func (a *DBRPCMapping) saveMap(ctx context.Context, queryname string, smap map[s
 
 func (a *DBRPCMapping) Update(ctx context.Context, p *savepb.RPCMapping) error {
 	qn := "DBRPCMapping_Update"
-	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set servicename=$1, fqdnservice=$2, rpcname=$3 where id = $4", a.get_ServiceName(p), a.get_FQDNService(p), a.get_RPCName(p), p.ID)
+	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set servicename=$1, fqdnservice=$2, rpcname=$3, active=$4 where id = $5", a.get_ServiceName(p), a.get_FQDNService(p), a.get_RPCName(p), a.get_Active(p), p.ID)
 
 	return a.Error(ctx, qn, e)
 }
@@ -348,6 +350,36 @@ func (a *DBRPCMapping) ByLikeRPCName(ctx context.Context, p string) ([]*savepb.R
 	return l, nil
 }
 
+// get all "DBRPCMapping" rows with matching Active
+func (a *DBRPCMapping) ByActive(ctx context.Context, p bool) ([]*savepb.RPCMapping, error) {
+	qn := "DBRPCMapping_ByActive"
+	l, e := a.fromQuery(ctx, qn, "active = $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// get all "DBRPCMapping" rows with multiple matching Active
+func (a *DBRPCMapping) ByMultiActive(ctx context.Context, p []bool) ([]*savepb.RPCMapping, error) {
+	qn := "DBRPCMapping_ByActive"
+	l, e := a.fromQuery(ctx, qn, "active in $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// the 'like' lookup
+func (a *DBRPCMapping) ByLikeActive(ctx context.Context, p bool) ([]*savepb.RPCMapping, error) {
+	qn := "DBRPCMapping_ByLikeActive"
+	l, e := a.fromQuery(ctx, qn, "active ilike $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
 /**********************************************************************
 * The field getters
 **********************************************************************/
@@ -370,6 +402,11 @@ func (a *DBRPCMapping) get_FQDNService(p *savepb.RPCMapping) string {
 // getter for field "RPCName" (RPCName) [string]
 func (a *DBRPCMapping) get_RPCName(p *savepb.RPCMapping) string {
 	return string(p.RPCName)
+}
+
+// getter for field "Active" (Active) [bool]
+func (a *DBRPCMapping) get_Active(p *savepb.RPCMapping) bool {
+	return bool(p.Active)
 }
 
 /**********************************************************************
@@ -452,6 +489,8 @@ func (a *DBRPCMapping) get_col_from_proto(p *savepb.RPCMapping, colname string) 
 		return a.get_FQDNService(p)
 	} else if colname == "rpcname" {
 		return a.get_RPCName(p)
+	} else if colname == "active" {
+		return a.get_Active(p)
 	}
 	panic(fmt.Sprintf("in table \"%s\", column \"%s\" cannot be resolved to proto field name", a.Tablename(), colname))
 }
@@ -461,10 +500,10 @@ func (a *DBRPCMapping) Tablename() string {
 }
 
 func (a *DBRPCMapping) SelectCols() string {
-	return "id,servicename, fqdnservice, rpcname"
+	return "id,servicename, fqdnservice, rpcname, active"
 }
 func (a *DBRPCMapping) SelectColsQualified() string {
-	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".servicename, " + a.SQLTablename + ".fqdnservice, " + a.SQLTablename + ".rpcname"
+	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".servicename, " + a.SQLTablename + ".fqdnservice, " + a.SQLTablename + ".rpcname, " + a.SQLTablename + ".active"
 }
 
 func (a *DBRPCMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*savepb.RPCMapping, error) {
@@ -478,7 +517,8 @@ func (a *DBRPCMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*savep
 		scanTarget_1 := &foo.ServiceName
 		scanTarget_2 := &foo.FQDNService
 		scanTarget_3 := &foo.RPCName
-		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3)
+		scanTarget_4 := &foo.Active
+		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4)
 		// END SCANNER
 
 		if err != nil {
@@ -495,15 +535,17 @@ func (a *DBRPCMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*savep
 func (a *DBRPCMapping) CreateTable(ctx context.Context) error {
 	csql := []string{
 		`create sequence if not exists ` + a.SQLTablename + `_seq;`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),servicename text not null ,fqdnservice text not null ,rpcname text not null );`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),servicename text not null ,fqdnservice text not null ,rpcname text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),servicename text not null ,fqdnservice text not null ,rpcname text not null ,active boolean not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),servicename text not null ,fqdnservice text not null ,rpcname text not null ,active boolean not null );`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS servicename text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS fqdnservice text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS rpcname text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS active boolean not null default false;`,
 
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS servicename text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS fqdnservice text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS rpcname text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS active boolean not null  default false;`,
 	}
 
 	for i, c := range csql {

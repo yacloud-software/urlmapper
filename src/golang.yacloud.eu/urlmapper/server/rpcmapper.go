@@ -45,6 +45,7 @@ func (e *echoServer) SetRPCMapping(ctx context.Context, req *pb.RPCMappingReques
 	}
 	if id == 0 {
 		r := &pb.RPCMapping{
+			Active:      true,
 			RPCName:     req.RPCName,
 			FQDNService: req.FQDNServiceName,
 			ServiceName: svc.RegistryName,

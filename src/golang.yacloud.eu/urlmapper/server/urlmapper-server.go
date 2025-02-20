@@ -16,7 +16,6 @@ import (
 	"golang.conradwood.net/go-easyops/auth"
 	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/server"
-	"golang.conradwood.net/go-easyops/sql"
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.yacloud.eu/apis/protomanager"
 	pb "golang.yacloud.eu/apis/urlmapper"
@@ -37,13 +36,15 @@ type echoServer struct {
 
 func main() {
 	flag.Parse()
+	var err error
+	server.SetHealth(common.Health_STARTING)
+	server.SetHealth(common.Health_READY)
 	fmt.Printf("Starting URLMapperServer...\n")
 	utils.Bail("failed to migrate", migrate.Start())
-	psql, err := sql.Open()
-	utils.Bail("failed to open sql", err)
-	jsonMapStore = db.NewDBJsonMapping(psql)
-	db.DefaultDBAnyHostMapping()
-	db.DefaultDBRPCMapping()
+	jsonMapStore = db.DefaultDBJsonMapping()
+	jsonMapStore.AddCustomColumnHandler(&require_active{})
+	db.DefaultDBAnyHostMapping().AddCustomColumnHandler(&require_active{})
+	db.DefaultDBRPCMapping().AddCustomColumnHandler(&require_active{})
 	sd := server.NewServerDef()
 	sd.SetPort(*port)
 	sd.SetRegister(server.Register(
@@ -56,6 +57,16 @@ func main() {
 	err = server.ServerStartup(sd)
 	utils.Bail("Unable to start server", err)
 	os.Exit(0)
+}
+
+type require_active struct {
+}
+
+func (ra *require_active) FieldsToQuery(ctx context.Context) (map[string]any, error) {
+	return map[string]any{"active": true}, nil
+}
+func (ra *require_active) FieldsToStore(ctx context.Context, i interface{}) (map[string]any, error) {
+	return nil, nil
 }
 
 /************************************
@@ -86,6 +97,7 @@ func (e *echoServer) AddJsonMapping(ctx context.Context, req *pb.JsonMapping) (*
 	if !ra.Response.Granted {
 		return nil, errors.AccessDenied(ctx, "no access to domain %s (#%d)", ra.Domain.Name, ra.Domain.ID)
 	}
+	req.Active = true
 	id, err := jsonMapStore.Save(ctx, req)
 	if err != nil {
 		return nil, err
@@ -299,6 +311,7 @@ func (e *echoServer) AddAnyHostMapping(ctx context.Context, req *pb.AnyMappingRe
 
 	fmt.Printf("Adding Service: %#v -> path=%s\n", srv, path)
 	ahm := &pb.AnyHostMapping{
+		Active:          true,
 		Path:            path,
 		ServiceName:     req.ServiceName,
 		FQDNServiceName: path,

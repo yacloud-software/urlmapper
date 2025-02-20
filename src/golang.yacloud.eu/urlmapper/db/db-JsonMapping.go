@@ -16,7 +16,7 @@ package db
 
 Main Table:
 
- CREATE TABLE jsonmapping (id integer primary key default nextval('jsonmapping_seq'),domain text not null  ,path text not null  ,serviceid text not null  ,groupid text not null  ,fqdnservicename text not null  ,servicename text not null  ,rpc text not null  );
+ CREATE TABLE jsonmapping (id integer primary key default nextval('jsonmapping_seq'),domain text not null  ,path text not null  ,serviceid text not null  ,groupid text not null  ,fqdnservicename text not null  ,servicename text not null  ,rpc text not null  ,active boolean not null  );
 
 Alter statements:
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS domain text not null default '';
@@ -26,11 +26,12 @@ ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS groupid text not null default '
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS servicename text not null default '';
 ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS rpc text not null default '';
+ALTER TABLE jsonmapping ADD COLUMN IF NOT EXISTS active boolean not null default false;
 
 
 Archive Table: (structs can be moved from main to archive using Archive() function)
 
- CREATE TABLE jsonmapping_archive (id integer unique not null,domain text not null,path text not null,serviceid text not null,groupid text not null,fqdnservicename text not null,servicename text not null,rpc text not null);
+ CREATE TABLE jsonmapping_archive (id integer unique not null,domain text not null,path text not null,serviceid text not null,groupid text not null,fqdnservicename text not null,servicename text not null,rpc text not null,active boolean not null);
 */
 
 import (
@@ -105,7 +106,7 @@ func (a *DBJsonMapping) Archive(ctx context.Context, id uint64) error {
 	}
 
 	// now save it to archive:
-	_, e := a.DB.ExecContext(ctx, "archive_DBJsonMapping", "insert into "+a.SQLArchivetablename+" (id,domain, path, serviceid, groupid, fqdnservicename, servicename, rpc) values ($1,$2, $3, $4, $5, $6, $7, $8) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID, p.FQDNServiceName, p.ServiceName, p.RPC)
+	_, e := a.DB.ExecContext(ctx, "archive_DBJsonMapping", "insert into "+a.SQLArchivetablename+" (id,domain, path, serviceid, groupid, fqdnservicename, servicename, rpc, active) values ($1,$2, $3, $4, $5, $6, $7, $8, $9) ", p.ID, p.Domain, p.Path, p.ServiceID, p.GroupID, p.FQDNServiceName, p.ServiceName, p.RPC, p.Active)
 	if e != nil {
 		return e
 	}
@@ -130,6 +131,7 @@ func (a *DBJsonMapping) buildSaveMap(ctx context.Context, p *savepb.JsonMapping)
 	res["fqdnservicename"] = a.get_col_from_proto(p, "fqdnservicename")
 	res["servicename"] = a.get_col_from_proto(p, "servicename")
 	res["rpc"] = a.get_col_from_proto(p, "rpc")
+	res["active"] = a.get_col_from_proto(p, "active")
 	if extra != nil {
 		for k, v := range extra {
 			res[k] = v
@@ -198,7 +200,7 @@ func (a *DBJsonMapping) saveMap(ctx context.Context, queryname string, smap map[
 
 func (a *DBJsonMapping) Update(ctx context.Context, p *savepb.JsonMapping) error {
 	qn := "DBJsonMapping_Update"
-	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set domain=$1, path=$2, serviceid=$3, groupid=$4, fqdnservicename=$5, servicename=$6, rpc=$7 where id = $8", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p), a.get_FQDNServiceName(p), a.get_ServiceName(p), a.get_RPC(p), p.ID)
+	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set domain=$1, path=$2, serviceid=$3, groupid=$4, fqdnservicename=$5, servicename=$6, rpc=$7, active=$8 where id = $9", a.get_Domain(p), a.get_Path(p), a.get_ServiceID(p), a.get_GroupID(p), a.get_FQDNServiceName(p), a.get_ServiceName(p), a.get_RPC(p), a.get_Active(p), p.ID)
 
 	return a.Error(ctx, qn, e)
 }
@@ -476,6 +478,36 @@ func (a *DBJsonMapping) ByLikeRPC(ctx context.Context, p string) ([]*savepb.Json
 	return l, nil
 }
 
+// get all "DBJsonMapping" rows with matching Active
+func (a *DBJsonMapping) ByActive(ctx context.Context, p bool) ([]*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_ByActive"
+	l, e := a.fromQuery(ctx, qn, "active = $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// get all "DBJsonMapping" rows with multiple matching Active
+func (a *DBJsonMapping) ByMultiActive(ctx context.Context, p []bool) ([]*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_ByActive"
+	l, e := a.fromQuery(ctx, qn, "active in $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// the 'like' lookup
+func (a *DBJsonMapping) ByLikeActive(ctx context.Context, p bool) ([]*savepb.JsonMapping, error) {
+	qn := "DBJsonMapping_ByLikeActive"
+	l, e := a.fromQuery(ctx, qn, "active ilike $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
 /**********************************************************************
 * The field getters
 **********************************************************************/
@@ -518,6 +550,11 @@ func (a *DBJsonMapping) get_ServiceName(p *savepb.JsonMapping) string {
 // getter for field "RPC" (RPC) [string]
 func (a *DBJsonMapping) get_RPC(p *savepb.JsonMapping) string {
 	return string(p.RPC)
+}
+
+// getter for field "Active" (Active) [bool]
+func (a *DBJsonMapping) get_Active(p *savepb.JsonMapping) bool {
+	return bool(p.Active)
 }
 
 /**********************************************************************
@@ -608,6 +645,8 @@ func (a *DBJsonMapping) get_col_from_proto(p *savepb.JsonMapping, colname string
 		return a.get_ServiceName(p)
 	} else if colname == "rpc" {
 		return a.get_RPC(p)
+	} else if colname == "active" {
+		return a.get_Active(p)
 	}
 	panic(fmt.Sprintf("in table \"%s\", column \"%s\" cannot be resolved to proto field name", a.Tablename(), colname))
 }
@@ -617,10 +656,10 @@ func (a *DBJsonMapping) Tablename() string {
 }
 
 func (a *DBJsonMapping) SelectCols() string {
-	return "id,domain, path, serviceid, groupid, fqdnservicename, servicename, rpc"
+	return "id,domain, path, serviceid, groupid, fqdnservicename, servicename, rpc, active"
 }
 func (a *DBJsonMapping) SelectColsQualified() string {
-	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".domain, " + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".groupid, " + a.SQLTablename + ".fqdnservicename, " + a.SQLTablename + ".servicename, " + a.SQLTablename + ".rpc"
+	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".domain, " + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".groupid, " + a.SQLTablename + ".fqdnservicename, " + a.SQLTablename + ".servicename, " + a.SQLTablename + ".rpc, " + a.SQLTablename + ".active"
 }
 
 func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*savepb.JsonMapping, error) {
@@ -638,7 +677,8 @@ func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*save
 		scanTarget_5 := &foo.FQDNServiceName
 		scanTarget_6 := &foo.ServiceName
 		scanTarget_7 := &foo.RPC
-		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4, scanTarget_5, scanTarget_6, scanTarget_7)
+		scanTarget_8 := &foo.Active
+		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4, scanTarget_5, scanTarget_6, scanTarget_7, scanTarget_8)
 		// END SCANNER
 
 		if err != nil {
@@ -655,8 +695,8 @@ func (a *DBJsonMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*save
 func (a *DBJsonMapping) CreateTable(ctx context.Context) error {
 	csql := []string{
 		`create sequence if not exists ` + a.SQLTablename + `_seq;`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null ,fqdnservicename text not null ,servicename text not null ,rpc text not null );`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null ,fqdnservicename text not null ,servicename text not null ,rpc text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null ,fqdnservicename text not null ,servicename text not null ,rpc text not null ,active boolean not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),domain text not null ,path text not null ,serviceid text not null ,groupid text not null ,fqdnservicename text not null ,servicename text not null ,rpc text not null ,active boolean not null );`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS domain text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS path text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS serviceid text not null default '';`,
@@ -664,6 +704,7 @@ func (a *DBJsonMapping) CreateTable(ctx context.Context) error {
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS servicename text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS rpc text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS active boolean not null default false;`,
 
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS domain text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS path text not null  default '';`,
@@ -672,6 +713,7 @@ func (a *DBJsonMapping) CreateTable(ctx context.Context) error {
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS fqdnservicename text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS servicename text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS rpc text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS active boolean not null  default false;`,
 	}
 
 	for i, c := range csql {

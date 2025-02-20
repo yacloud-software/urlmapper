@@ -16,18 +16,19 @@ package db
 
 Main Table:
 
- CREATE TABLE anyhostmapping (id integer primary key default nextval('anyhostmapping_seq'),path text not null  unique  ,serviceid text not null  ,servicename text not null  ,fqdnservicename text not null  );
+ CREATE TABLE anyhostmapping (id integer primary key default nextval('anyhostmapping_seq'),path text not null  unique  ,serviceid text not null  ,servicename text not null  ,fqdnservicename text not null  ,active boolean not null  );
 
 Alter statements:
 ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS path text not null unique  default '';
 ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS serviceid text not null default '';
 ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS servicename text not null default '';
 ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';
+ALTER TABLE anyhostmapping ADD COLUMN IF NOT EXISTS active boolean not null default false;
 
 
 Archive Table: (structs can be moved from main to archive using Archive() function)
 
- CREATE TABLE anyhostmapping_archive (id integer unique not null,path text not null,serviceid text not null,servicename text not null,fqdnservicename text not null);
+ CREATE TABLE anyhostmapping_archive (id integer unique not null,path text not null,serviceid text not null,servicename text not null,fqdnservicename text not null,active boolean not null);
 */
 
 import (
@@ -102,7 +103,7 @@ func (a *DBAnyHostMapping) Archive(ctx context.Context, id uint64) error {
 	}
 
 	// now save it to archive:
-	_, e := a.DB.ExecContext(ctx, "archive_DBAnyHostMapping", "insert into "+a.SQLArchivetablename+" (id,path, serviceid, servicename, fqdnservicename) values ($1,$2, $3, $4, $5) ", p.ID, p.Path, p.ServiceID, p.ServiceName, p.FQDNServiceName)
+	_, e := a.DB.ExecContext(ctx, "archive_DBAnyHostMapping", "insert into "+a.SQLArchivetablename+" (id,path, serviceid, servicename, fqdnservicename, active) values ($1,$2, $3, $4, $5, $6) ", p.ID, p.Path, p.ServiceID, p.ServiceName, p.FQDNServiceName, p.Active)
 	if e != nil {
 		return e
 	}
@@ -124,6 +125,7 @@ func (a *DBAnyHostMapping) buildSaveMap(ctx context.Context, p *savepb.AnyHostMa
 	res["serviceid"] = a.get_col_from_proto(p, "serviceid")
 	res["servicename"] = a.get_col_from_proto(p, "servicename")
 	res["fqdnservicename"] = a.get_col_from_proto(p, "fqdnservicename")
+	res["active"] = a.get_col_from_proto(p, "active")
 	if extra != nil {
 		for k, v := range extra {
 			res[k] = v
@@ -192,7 +194,7 @@ func (a *DBAnyHostMapping) saveMap(ctx context.Context, queryname string, smap m
 
 func (a *DBAnyHostMapping) Update(ctx context.Context, p *savepb.AnyHostMapping) error {
 	qn := "DBAnyHostMapping_Update"
-	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set path=$1, serviceid=$2, servicename=$3, fqdnservicename=$4 where id = $5", a.get_Path(p), a.get_ServiceID(p), a.get_ServiceName(p), a.get_FQDNServiceName(p), p.ID)
+	_, e := a.DB.ExecContext(ctx, qn, "update "+a.SQLTablename+" set path=$1, serviceid=$2, servicename=$3, fqdnservicename=$4, active=$5 where id = $6", a.get_Path(p), a.get_ServiceID(p), a.get_ServiceName(p), a.get_FQDNServiceName(p), a.get_Active(p), p.ID)
 
 	return a.Error(ctx, qn, e)
 }
@@ -380,6 +382,36 @@ func (a *DBAnyHostMapping) ByLikeFQDNServiceName(ctx context.Context, p string) 
 	return l, nil
 }
 
+// get all "DBAnyHostMapping" rows with matching Active
+func (a *DBAnyHostMapping) ByActive(ctx context.Context, p bool) ([]*savepb.AnyHostMapping, error) {
+	qn := "DBAnyHostMapping_ByActive"
+	l, e := a.fromQuery(ctx, qn, "active = $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// get all "DBAnyHostMapping" rows with multiple matching Active
+func (a *DBAnyHostMapping) ByMultiActive(ctx context.Context, p []bool) ([]*savepb.AnyHostMapping, error) {
+	qn := "DBAnyHostMapping_ByActive"
+	l, e := a.fromQuery(ctx, qn, "active in $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
+// the 'like' lookup
+func (a *DBAnyHostMapping) ByLikeActive(ctx context.Context, p bool) ([]*savepb.AnyHostMapping, error) {
+	qn := "DBAnyHostMapping_ByLikeActive"
+	l, e := a.fromQuery(ctx, qn, "active ilike $1", p)
+	if e != nil {
+		return nil, a.Error(ctx, qn, errors.Errorf("ByActive: error scanning (%s)", e))
+	}
+	return l, nil
+}
+
 /**********************************************************************
 * The field getters
 **********************************************************************/
@@ -407,6 +439,11 @@ func (a *DBAnyHostMapping) get_ServiceName(p *savepb.AnyHostMapping) string {
 // getter for field "FQDNServiceName" (FQDNServiceName) [string]
 func (a *DBAnyHostMapping) get_FQDNServiceName(p *savepb.AnyHostMapping) string {
 	return string(p.FQDNServiceName)
+}
+
+// getter for field "Active" (Active) [bool]
+func (a *DBAnyHostMapping) get_Active(p *savepb.AnyHostMapping) bool {
+	return bool(p.Active)
 }
 
 /**********************************************************************
@@ -491,6 +528,8 @@ func (a *DBAnyHostMapping) get_col_from_proto(p *savepb.AnyHostMapping, colname 
 		return a.get_ServiceName(p)
 	} else if colname == "fqdnservicename" {
 		return a.get_FQDNServiceName(p)
+	} else if colname == "active" {
+		return a.get_Active(p)
 	}
 	panic(fmt.Sprintf("in table \"%s\", column \"%s\" cannot be resolved to proto field name", a.Tablename(), colname))
 }
@@ -500,10 +539,10 @@ func (a *DBAnyHostMapping) Tablename() string {
 }
 
 func (a *DBAnyHostMapping) SelectCols() string {
-	return "id,path, serviceid, servicename, fqdnservicename"
+	return "id,path, serviceid, servicename, fqdnservicename, active"
 }
 func (a *DBAnyHostMapping) SelectColsQualified() string {
-	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".servicename, " + a.SQLTablename + ".fqdnservicename"
+	return "" + a.SQLTablename + ".id," + a.SQLTablename + ".path, " + a.SQLTablename + ".serviceid, " + a.SQLTablename + ".servicename, " + a.SQLTablename + ".fqdnservicename, " + a.SQLTablename + ".active"
 }
 
 func (a *DBAnyHostMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*savepb.AnyHostMapping, error) {
@@ -518,7 +557,8 @@ func (a *DBAnyHostMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*s
 		scanTarget_2 := &foo.ServiceID
 		scanTarget_3 := &foo.ServiceName
 		scanTarget_4 := &foo.FQDNServiceName
-		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4)
+		scanTarget_5 := &foo.Active
+		err := rows.Scan(scanTarget_0, scanTarget_1, scanTarget_2, scanTarget_3, scanTarget_4, scanTarget_5)
 		// END SCANNER
 
 		if err != nil {
@@ -535,17 +575,19 @@ func (a *DBAnyHostMapping) FromRows(ctx context.Context, rows *gosql.Rows) ([]*s
 func (a *DBAnyHostMapping) CreateTable(ctx context.Context) error {
 	csql := []string{
 		`create sequence if not exists ` + a.SQLTablename + `_seq;`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null ,fqdnservicename text not null );`,
-		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null ,fqdnservicename text not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + ` (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null ,fqdnservicename text not null ,active boolean not null );`,
+		`CREATE TABLE if not exists ` + a.SQLTablename + `_archive (id integer primary key default nextval('` + a.SQLTablename + `_seq'),path text not null ,serviceid text not null ,servicename text not null ,fqdnservicename text not null ,active boolean not null );`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS path text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS serviceid text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS servicename text not null default '';`,
 		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS fqdnservicename text not null default '';`,
+		`ALTER TABLE ` + a.SQLTablename + ` ADD COLUMN IF NOT EXISTS active boolean not null default false;`,
 
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS path text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS serviceid text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS servicename text not null  default '';`,
 		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS fqdnservicename text not null  default '';`,
+		`ALTER TABLE ` + a.SQLTablename + `_archive  ADD COLUMN IF NOT EXISTS active boolean not null  default false;`,
 	}
 
 	for i, c := range csql {

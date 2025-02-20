@@ -6,8 +6,8 @@ toolchain go1.23.3
 
 require (
 	github.com/golang/protobuf v1.5.4
-	golang.conradwood.net/apis/common v1.1.3667
-	golang.conradwood.net/go-easyops v0.1.34215
+	golang.conradwood.net/apis/common v1.1.3675
+	golang.conradwood.net/go-easyops v0.1.34214
 	golang.org/x/net v0.34.0
 	google.golang.org/grpc v1.70.0
 )
