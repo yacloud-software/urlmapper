@@ -34,11 +34,12 @@ import (
 	"context"
 	gosql "database/sql"
 	"fmt"
+	"os"
+	"sync"
+
 	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/sql"
 	savepb "golang.yacloud.eu/apis/urlmapper"
-	"os"
-	"sync"
 )
 
 var (
@@ -422,8 +423,8 @@ func (a *DBRPCMapping) ByDBQuery(ctx context.Context, query *Query) ([]*savepb.R
 	i := 0
 	for col_name, value := range extra_fields {
 		i++
-		efname := fmt.Sprintf("EXTRA_FIELD_%d", i)
-		query.Add(col_name+" = "+efname, QP{efname: value})
+		//		efname := fmt.Sprintf("EXTRA_FIELD_%d", i)
+		query.AddEqual(col_name, value)
 	}
 
 	gw, paras := query.ToPostgres()
@@ -577,4 +578,3 @@ func (a *DBRPCMapping) Error(ctx context.Context, q string, e error) error {
 	}
 	return errors.Errorf("[table="+a.SQLTablename+", query=%s] Error: %s", q, e)
 }
-
