@@ -14,6 +14,7 @@ message JsonMapping {
   string FQDNServiceName=6; // the fqdn service name,e.g. "golang.conradwood.net/apis/registry/Registry"
   string ServiceName=7;// the registration service name,e.g. "registry.Registry"
   string RPC=8; // if "", applies to all RPCs
+  bool Active=9; // only considered if true
 }
 message GetJsonMappingRequest {
   string Domain=1; // the domain to which this applies
@@ -39,6 +40,7 @@ message AnyHostMapping {
   string ServiceID=3; // DEPRECATED: the serviceid in protorenderer to which refers
   string ServiceName=4; // service name like it registers
   string FQDNServiceName=5; // the fqdn service name
+  bool Active=6; // only considered it true
 }
 message AnyMappingRequest {
   string Path=1 ;
@@ -70,6 +72,7 @@ message RPCMapping {
   string ServiceName=2; // e.g.  "artefact.ArtefactService"
   string FQDNService=3; // e.g.  "golang.conradwood.net/apis/artefact/ArtefactService"
   string RPCName=4; // e.g. "List"
+  bool Active=5; // only considered it true
 }
 message MappingRequest {
   string Path=1;
