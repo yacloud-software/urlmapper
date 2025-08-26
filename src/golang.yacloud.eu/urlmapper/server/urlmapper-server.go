@@ -47,6 +47,7 @@ func main() {
 	db.DefaultDBRPCMapping().AddCustomColumnHandler(&require_active{})
 	sd := server.NewServerDef()
 	sd.SetPort(*port)
+sd.SetOnStartupCallback(startup)
 	sd.SetRegister(server.Register(
 		func(server *grpc.Server) error {
 			e := new(echoServer)
@@ -57,6 +58,9 @@ func main() {
 	err = server.ServerStartup(sd)
 	utils.Bail("Unable to start server", err)
 	os.Exit(0)
+}
+func startup() {
+	server.SetHealth(common.Health_READY)
 }
 
 type require_active struct {
@@ -380,3 +384,5 @@ func (e *echoServer) GetAllMappings(ctx context.Context, req *common.Void) (*pb.
 	return res, nil
 
 }
+
+
